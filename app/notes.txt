@@ -1,0 +1,97 @@
+### If you add/remove file, restart server
+
+### To specify port or ip
+
+python3 manage.py runserver 8080
+python3 manage.py runserver 0.0.0.0:8000 //listen on all available public IPs
+
+
+-----
+Create a view in polls/views.py
+Create a url in polls/urls.py
+Add the url to the project(app) urls.py
+-----
+
+### path function is passed four arguments, two required: route and view, and two optional: kwargs, and name.
+
+### for postgresql, you need to install psycopg3.1.8+ and configurpe the database in settings.py
+
+### for every update to models.py, you need to run python3 manage.py makemigrations(adding table, changing field name etc.) (see the commit with: python3 manage.py sqlmigrate polls 0001) and 
+python3 manage.py migrate (push changes)
+|-> if you get "No changes detected", because you didnt register the app in settings.py (INSTALLED_APPS)
+
+### to create an admin: python3 manage.py createsuperuser
+
+### fn + f5 to refresh pgadmin
+
+### djangos admin page can interatively effect database
+
+PYTHON MANAGE.PY SHELL
+
+-------
+### when a path is given, django looks for urls.py and urlpatterns. IT TRAVERSES THE PATTERNS IN ORDER. when it finds it, then it goes to polls.urls
+|-> detail (request=<HttpRequest object>, variable_name=34) (<int:variable_name>)
+
+Each view is responsible for doing one of two things: returning an HttpResponse object containing the content for the requested page, or raising an exception such as Http404. The rest is up to you.
+
+Your view can read records from a database, or not. It can use a template system such as Django’s – or a third-party Python template system – or not. It can generate a PDF file, output XML, create a ZIP file on the fly, anything you want, using whatever Python libraries you want.
+
+All Django wants is that HttpResponse. Or an exception.
+
+--------
+
+### to change how your page looks, use templates (./polls/templates/polls)
+Your project’s TEMPLATES setting describes how Django will load and render templates. The default settings file configures a DjangoTemplates backend whose APP_DIRS option is set to True. By convention DjangoTemplates looks for a “templates” subdirectory in each of the INSTALLED_APPS.
+
+
+------- REACT FRONTEND -------
+
+    ### LEARN ABOUT CORS
+
+    ### serializers are created in order to convert data (model instances) to json format, 
+    so the frontend can work with the received data
+
+    ### serializers consist of object properties, which are the fields of the model
+
+    ##### npx create-react-app frontend
+
+    #### import 'bootstrap/dist/css/bootstrap.min.css'; >> index.js
+
+    ### use axios library to make http requests to API of backend
+
+    ### frontend > package.json >  "proxy": "http://localhost:8000", tunnels API requests to backend
+
+    djangorestframework, django-cors-headers, axios, bootstrap, and reactstrap libraries.
+
+-------- API ------------
+
+    ### How to create an API endpoint
+    app urls.py
+    polls views.py
+    polls serializers.py
+
+    # API endpoint
+        # /users/ lists all users (CREATE & DELETE)
+        # /users/<id> lists user with id (UPDATE & DELETE)
+
+--------- VIEW ------------
+
+    #Create a new view at a new path
+
+    polls views.py (Create a new function)
+    app urls.py (new path to urlpatterns)
+
+
+-------- 42 OAUTH --------
+
+    import requests
+
+    files = {
+        'grant_type': ,
+        'client_id':,
+        'client_secret': ,
+        'code': ,
+        'redirect_uri': ,
+    }
+
+    response = requests.post('https://api.intra.42.fr/oauth/token', files=files)
