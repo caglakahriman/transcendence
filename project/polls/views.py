@@ -9,10 +9,18 @@ from django.contrib.auth import authenticate
 from django.contrib.auth import login as login_user
 from django.contrib.auth import logout as logout_user
 from django.contrib.auth.decorators import login_required
+from rest_framework.views import APIView
+from django.http import JsonResponse
 
 
 import json
 import requests
+
+class HomeView(APIView):
+    def get(self, request, format=None):
+        return JsonResponse({"message":
+        'HELLO WORLD FROM DJANGO AND DOCKER'})  
+
 
 class UserView(viewsets.ModelViewSet): #implementation for CRUD operations by default.
     serializer_class = UserSerializer
