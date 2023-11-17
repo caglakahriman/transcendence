@@ -193,3 +193,5 @@ wheel
 widgetsnbextension
 wordcloud
 zope.interface
+martor
+gunicorn
