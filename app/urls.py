@@ -23,7 +23,7 @@ router = routers.DefaultRouter()
 router.register(r'users', views.UserView, 'user')
 
 urlpatterns = [
-    path('transcendence/', view=views.main, name="main"),
+    path('', view=views.main, name="main"),
     path('login/', view=views.login, name="login"),
     path('register/', view=views.register, name="register"),
     path('logout/', view=views.logout, name="logout"),
