@@ -95,3 +95,9 @@ Your project’s TEMPLATES setting describes how Django will load and render tem
     }
 
     response = requests.post('https://api.intra.42.fr/oauth/token', files=files)
+
+----------- WEBSOCKETS ------------
+
+### WebSocket consumer is a class that handles the WebSocket connections and defines
+how to respond to incoming messages
+

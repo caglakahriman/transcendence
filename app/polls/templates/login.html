@@ -1,12 +1,12 @@
 {% extends "base_registration.html" %}
 
 {% block content %}
-  <form class="form-signin" action="/login/" method="post">
-    <h1 class="h3 mb-3 font-weight-normal">Sign in</h1>
+  <form class="form-signin" action="{% url 'login' %}" method="post">
+    <h1 class="h3 mb-3 font-weight-bold">Sign in here.</h1>
     {% csrf_token %}
-    {{ form }}
-    <!--<input id="inputUsername" class="form-control" placeholder="Username" required="" autofocus="" type="text">
-    <input id="inputPassword" class="form-control" placeholder="Password" required="" type="password">-->
+    <div class="d-flex flex-column">
+      {{ form }}
+    </div>
     {% if messages %}
       <ul class="messages text-danger small">
         {% for message in messages %}
@@ -15,6 +15,7 @@
       </ul>
     {% endif %}
     <button class="btn btn-lg btn-primary btn-block mt-5" type="submit">Sign in</button>
+    <button class="btn btn-lg btn-dark btn-block mt-1" type="text" onclick="location.href = '/auth42'">42auth</button>
   </form>
   <p>You don't have an account? <a href="{% url 'register' %}">Register here.</a></p>
 {% endblock %}

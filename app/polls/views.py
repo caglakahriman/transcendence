@@ -1,11 +1,14 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import HttpResponse
-from .models import User
 from rest_framework import viewsets
 from .forms import RegistrationForm
 from .serializers import UserSerializer
+from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
+from django.contrib.auth import login as login_user
+from django.contrib.auth import logout as logout_user
+from django.contrib.auth.decorators import login_required
 
 
 import json
@@ -15,6 +18,7 @@ class UserView(viewsets.ModelViewSet): #implementation for CRUD operations by de
     serializer_class = UserSerializer
     queryset = User.objects.all()
 
+@login_required(login_url='login')
 def main(request):
     user_count = User.objects.all().count()
     context = {
@@ -22,15 +26,18 @@ def main(request):
     }
     return render(request, "index.html", context=context)
 
+@login_required(login_url='login')
 def users(request):
     users = User.objects.all()
     context = {
-        'users': [user.login for user in users],
+        'users': [user.username for user in users],
     }
     return render(request, "users.html", context=context)
 
 
 def auth42(request):
+    if request.user.is_authenticated:
+        return redirect("main")
     code = request.GET.get('code')
     body = {
     'grant_type': 'authorization_code',
@@ -44,10 +51,16 @@ def auth42(request):
     user = requests.get('https://api.intra.42.fr/v2/me', headers={'Authorization': 'Bearer ' + r.json()['access_token']})
 
     user_info = json.dumps(user.json(), indent=4)
-    if (User.objects.filter(login=user.json()['login']).exists() == False):
-        new_user = User.objects.create(login=user.json()['login'], token=r.json()['refresh_token'])
+    if (User.objects.filter(username=user.json()['login']).exists() == False):
+        new_user = User.objects.create(username=user.json()['login'], password=r.json()['refresh_token'])
         new_user.save()
-    return render(request, "index.html")
+        new_user = authenticate(request, username=user.json()['login'], password=r.json()['refresh_token'])
+        login_user(request, new_user)
+        return redirect("main")
+    else:
+        messages.error(request, f"This username is already taken: {user.json()['login']}. C'mon, be more creative!")
+        return redirect("login")
+
 
 def login(request):
     if request.method == "POST":
@@ -55,21 +68,26 @@ def login(request):
         if form.is_valid():
             login = form.cleaned_data['login']
             token = form.cleaned_data['token']
-            if (User.objects.filter(login=login).exists()):
-                user = User.objects.get(login=login)
-                if (user.token == token):
-                    messages.success(request, f'You are logged in as {login}')
-                    #authenticate(request, username=login, password=token)
-                    return redirect("main")
+            if (User.objects.filter(username=login).exists()):
+                user = User.objects.get(username=login)
+                if (user.password == token):
+                    if (user is not None):
+                        login_user(request, user)
+                        messages.success(request, f'You are logged in as {login}')
+                        return redirect("main")
+                    else:
+                        messages.error(request, f"LOGIN FUCKS UP")
+                        return redirect("register")
                 else:
-                    messages.error(request, f'Invalid password')
-                    return redirect("login")
+                    messages.info(request, f"Invalid password or username")
+                    return redirect("register")
             else:
-                messages.error(request, f'Are you sure you are registered?')
-                return redirect('login')
+                messages.info(request, f"Invalid password or username")
+                return redirect("register")
     else:
-        form = RegistrationForm()
-        return render(request, "login.html", {'form': RegistrationForm()})
+        form = RegistrationForm(request.POST)
+        return render(request, "login.html", {'form': form})
+
 
 def register(request):
     if request.method == "POST":
@@ -77,24 +95,36 @@ def register(request):
         if form.is_valid():
             login = form.cleaned_data['login']
             token = form.cleaned_data['token']
-            if (User.objects.filter(login=login).exists()):
+            if (User.objects.filter(username=login).exists()):
                 messages.error(request, f"This username is already taken: {login}. C'mon, be more creative!")
-                return redirect("register")
+                form = RegistrationForm(request.POST)
+                return render(request, "register.html", {'form': form})
             elif (token != ""):
-                new_user = User.objects.create(login=login, token=token)
+                new_user = User.objects.create(username=login, password=token)
                 new_user.save()
+                new_user = authenticate(request, username=login, password=token)
                 messages.success(request, f"You've successfully registered as {login}!")
                 return redirect("main")
+        else:
+            form = RegistrationForm(request.POST)
+            return render(request, "register.html", {'form': form})
     else:
-        form = RegistrationForm()
+        form = RegistrationForm(request.POST)
         return render(request, "register.html", {'form': form})
 
+@login_required(login_url='login')
+def logout(request):
+    logout_user(request)
+    return redirect("login")
+
+@login_required(login_url='login')
 def pollindex(request):
     return HttpResponse("Hello, world. You're at the polls index.")
 
+@login_required(login_url='login')
 def searchUser(request, user_name):
     users = User.objects.all()
-    user_names = [user.login for user in users]
+    user_names = [user.username for user in users]
 
     if (user_name in user_names):
         return HttpResponse("User you are looking for exists: %s." % user_name)

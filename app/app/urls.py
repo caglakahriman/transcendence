@@ -23,10 +23,10 @@ router = routers.DefaultRouter()
 router.register(r'users', views.UserView, 'user')
 
 urlpatterns = [
-    path('', view=views.login, name="login"),
+    path('', view=views.main, name="main"),
     path('login/', view=views.login, name="login"),
-    path('main/', view=views.main, name="main"),
     path('register/', view=views.register, name="register"),
+    path('logout/', view=views.logout, name="logout"),
     path('auth42/', view=views.auth42, name="auth42"),
     path('users/', view=views.users, name="users"),
     path('polls/', include("polls.urls")), #include allows referencing other URLconfs
