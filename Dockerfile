@@ -1,16 +1,11 @@
 FROM python:latest
 
-ENV DockerHOME=/home/app/web
+COPY requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN mkdir -p $DockerHOME
+COPY . code
+WORKDIR /code
 
-WORKDIR $DockerHOME
+EXPOSE 8000
 
-COPY . $DockerHOME  
-
-RUN pip install --upgrade pip  
-RUN pip install -r requirements.txt  
-
-EXPOSE 8000 
-
-CMD python3 ./project/manage.py runserver  
+CMD ["python3", "code/project/manage.py", "0.0.0.0:8000"]

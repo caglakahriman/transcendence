@@ -1,25 +1,37 @@
+version: '3.5'
+
+networks:
+        localhost:
+                name: inet
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+            device: /home/cagla/data/database
+            o: bind
+            type: none
+
+
 services:
-
-  web:
-    build: .
-    ports:
-      - "80:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-    command: ["python3", "./project/manage.py", "runserver"]
-
   db:
     image: postgres
     restart: always
-    environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_DB: dbtest
+    networks:
+      - localhost
+    env_file:
+      - ./project/app/.env
     volumes:
-      - ./dbdata:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data
 
-volumes:
-  dbdata:
-    restart: always
-
+  web:
+    build: .
+    networks:
+      - localhost
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    env_file:
+      - ./project/app/.env
+    command: ["python3", "./project/manage.py", "runserver", "0.0.0.0:8000"]

@@ -4,3 +4,4 @@ django-channels
 django-environ
 psycopg
 psycopg2
+psycopg2-binary
