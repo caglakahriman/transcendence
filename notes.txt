@@ -101,3 +101,8 @@ Your project’s TEMPLATES setting describes how Django will load and render tem
 ### WebSocket consumer is a class that handles the WebSocket connections and defines
 how to respond to incoming messages
 
+---------- DATABASE CLEAN INSTALL --------
+brew uninstall postgresql
+brew install postgresql@13
+brew services start postgresql@13
+brew link postgresql@13 --force
