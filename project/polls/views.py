@@ -21,7 +21,6 @@ class HomeView(APIView):
         return JsonResponse({"message":
         'HELLO WORLD FROM DJANGO AND DOCKER'})  
 
-
 class UserView(viewsets.ModelViewSet): #implementation for CRUD operations by default.
     serializer_class = UserSerializer
     queryset = User.objects.all()
