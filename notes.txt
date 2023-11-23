@@ -26,25 +26,31 @@ python3 manage.py migrate (push changes)
 
 ### djangos admin page can interatively effect database
 
-PYTHON MANAGE.PY SHELL
+###!!  python3 manage.py shell >> go to shell of django
 
--------
-### when a path is given, django looks for urls.py and urlpatterns. IT TRAVERSES THE PATTERNS IN ORDER. when it finds it, then it goes to polls.urls
-|-> detail (request=<HttpRequest object>, variable_name=34) (<int:variable_name>)
+--------- PATH BEHAVIOUR ---------
+    ### when a path is given, django looks for urls.py and urlpatterns. IT TRAVERSES THE PATTERNS IN ORDER. 
+    when it finds it, then it goes to polls.urls detail (request=<HttpRequest object>, variable_name=34) (<int:variable_name>)
 
-Each view is responsible for doing one of two things: returning an HttpResponse object containing the content for the requested page, or raising an exception such as Http404. The rest is up to you.
+    Each view is responsible for doing one of two things: returning an HttpResponse object 
+    containing the content for the requested page, or raising an exception such as Http404. 
+    The rest is up to you.
 
-Your view can read records from a database, or not. It can use a template system such as Django’s – or a third-party Python template system – or not. It can generate a PDF file, output XML, create a ZIP file on the fly, anything you want, using whatever Python libraries you want.
+    Your view can read records from a database, or not. It can use a template system such as 
+    Django’s – or a third-party Python template system – or not. It can generate a PDF file, output XML, 
+    create a ZIP file on the fly, anything you want, using whatever Python libraries you want.
 
-All Django wants is that HttpResponse. Or an exception.
+    All Django wants is that HttpResponse. Or an exception.
 
---------
+-------- TEMPLATES --------
 
-### to change how your page looks, use templates (./polls/templates/polls)
-Your project’s TEMPLATES setting describes how Django will load and render templates. The default settings file configures a DjangoTemplates backend whose APP_DIRS option is set to True. By convention DjangoTemplates looks for a “templates” subdirectory in each of the INSTALLED_APPS.
+    ### to change how your page looks, use templates (./polls/templates/polls)
+    Your project’s TEMPLATES setting describes how Django will load and render templates. 
+    The default settings file configures a DjangoTemplates backend whose APP_DIRS option is set to True. 
+    By convention DjangoTemplates looks for a “templates” subdirectory in each of the INSTALLED_APPS.
 
 
-------- REACT FRONTEND -------
+------- REACT FRONTEND (YALAN OLDU YALAN) -------
 
     ### LEARN ABOUT CORS
 
@@ -70,7 +76,7 @@ Your project’s TEMPLATES setting describes how Django will load and render tem
     polls views.py
     polls serializers.py
 
-    # API endpoint
+    # Available API endpoint
         # /users/ lists all users (CREATE & DELETE)
         # /users/<id> lists user with id (UPDATE & DELETE)
 
@@ -98,11 +104,11 @@ Your project’s TEMPLATES setting describes how Django will load and render tem
 
 ----------- WEBSOCKETS ------------
 
-### WebSocket consumer is a class that handles the WebSocket connections and defines
-how to respond to incoming messages
+    ### WebSocket consumer is a class that handles the WebSocket connections and defines
+    how to respond to incoming messages
 
 ---------- DATABASE CLEAN INSTALL --------
-brew uninstall postgresql
-brew install postgresql@13
-brew services start postgresql@13
-brew link postgresql@13 --force
+    brew uninstall postgresql (if exists)
+    brew install postgresql
+    brew services start postgresql
+    brew link postgresql --force

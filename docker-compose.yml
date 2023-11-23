@@ -1,9 +1,5 @@
 version: '3.5'
 
-networks:
-    localhost:
-        name: inet
-
 volumes:
   postgres_data:
     driver: local
@@ -17,21 +13,27 @@ services:
   db:
     image: postgres
     restart: always
-    networks:
-      - localhost
+    container_name: postgres_db
     env_file:
       - ./project/app/.env
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data]
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "cagla", "-d", "dbtest"]
+      interval: 5s
+      timeout: 20s
+      retries: 2
+    
 
   web:
     build: .
-    networks:
-      - localhost
-    ports:
-      - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - ./project/app/.env
-    command: ["python3", "./project/manage.py", "runserver", "0.0.0.0:8000"]
+    ports:
+      - '8000:8000'
+    restart: 'on-failure:10'
