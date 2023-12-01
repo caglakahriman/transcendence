@@ -12,18 +12,17 @@ from django.contrib.auth.decorators import login_required
 from rest_framework.views import APIView
 from django.http import JsonResponse
 
-
 import json
 import requests
-
-class HomeView(APIView):
-    def get(self, request, format=None):
-        return JsonResponse({"message":
-        'HELLO WORLD FROM DJANGO AND DOCKER'})  
 
 class UserView(viewsets.ModelViewSet): #implementation for CRUD operations by default.
     serializer_class = UserSerializer
     queryset = User.objects.all()
+
+
+def room(request, room_name):
+    return render(request, 'room.html', {'room_name': room_name})
+
 
 @login_required(login_url='login')
 def main(request):

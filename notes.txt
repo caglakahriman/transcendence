@@ -2,6 +2,8 @@
 
 ### To specify port or ip
 
+ #!!!!!!!!!!!!!!!!!!!!!!if you're running on docker, change POSTGRES_HOST to 'db' (env file)!!!!!!!!!!!!!!!!!!!!!!
+
 python3 manage.py runserver 8080
 python3 manage.py runserver 0.0.0.0:8000 //listen on all available public IPs
 
@@ -106,6 +108,22 @@ python3 manage.py migrate (push changes)
 
     ### WebSocket consumer is a class that handles the WebSocket connections and defines
     how to respond to incoming messages
+
+    ##An example with HTTP:
+
+    The user makes an HTTP request.
+    We open up a new http type scope with details of the request’s path, method, headers, etc.
+    We send a http.request event with the HTTP body content
+    The Channels or ASGI application processes this and generates a http.response event to send back to the browser and close the connection.
+    The HTTP request/response is completed and the scope is destroyed.
+    
+    ##An example with a chatbot:
+
+    The user sends a first message to the chatbot.
+    This opens a scope containing the user’s username, chosen name, and user ID.
+    The application is given a chat.received_message event with the event text. It does not have to respond, but could send one, two or more other chat messages back as chat.send_message events if it wanted to.
+    The user sends more messages to the chatbot and more chat.received_message events are generated.
+    After a timeout or when the application process is restarted the scope is closed.
 
 ---------- DATABASE CLEAN INSTALL --------
     brew uninstall postgresql (if exists)
