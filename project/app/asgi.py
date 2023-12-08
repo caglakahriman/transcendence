@@ -7,6 +7,7 @@ For more information on this file, see
 https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
 """
 
+''' DEPRECATED
 import os
 
 from channels.routing import ProtocolTypeRouter, URLRouter
@@ -22,3 +23,4 @@ application = ProtocolTypeRouter(
     "websocket": URLRouter(websocket_urlpatterns),
     }
 )
+'''

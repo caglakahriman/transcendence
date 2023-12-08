@@ -1,7 +1,10 @@
 from django.db import models
+from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 
-class User(models.Model):
-    login = models.CharField(unique=True, max_length=10)
-    token = models.CharField(max_length=100)
-    def __str__(self):
-        return self.login
+
+class Profile(models.Model):
+    profile = models.ForeignKey(User, on_delete=models.CASCADE, related_name='profile', default=None)
+    avatar = models.ImageField(default="default.jpeg", upload_to="media")
+
+

@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import HttpResponse
 from rest_framework import viewsets
-from .forms import RegistrationForm
+from .forms import RegistrationForm, UsernameForm
 from .serializers import UserSerializer
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
@@ -11,6 +11,10 @@ from django.contrib.auth import logout as logout_user
 from django.contrib.auth.decorators import login_required
 from rest_framework.views import APIView
 from django.http import JsonResponse
+from .models import Profile
+from .signals import update_profile_signal
+
+
 
 import json
 import requests
@@ -20,9 +24,10 @@ class UserView(viewsets.ModelViewSet): #implementation for CRUD operations by de
     queryset = User.objects.all()
 
 
+''' DEPRECATED
 def room(request, room_name):
     return render(request, 'room.html', {'room_name': room_name})
-
+'''
 
 @login_required(login_url='login')
 def main(request):
@@ -70,7 +75,7 @@ def auth42(request):
 
 def login(request):
     if request.method == "POST":
-        form = RegistrationForm(request.POST)
+        form = RegistrationForm(request.POST or None)
         if form.is_valid():
             login = form.cleaned_data['login']
             token = form.cleaned_data['token']
@@ -91,37 +96,71 @@ def login(request):
                 messages.info(request, f"Invalid password or username")
                 return redirect("register")
     else:
-        form = RegistrationForm(request.POST)
+        form = RegistrationForm(request.POST or None)
         return render(request, "login.html", {'form': form})
 
 
 def register(request):
     if request.method == "POST":
-        form = RegistrationForm(request.POST)
+        form = RegistrationForm(request.POST or None)
         if form.is_valid():
             login = form.cleaned_data['login']
             token = form.cleaned_data['token']
             if (User.objects.filter(username=login).exists()):
                 messages.error(request, f"This username is already taken: {login}. C'mon, be more creative!")
-                form = RegistrationForm(request.POST)
+                form = RegistrationForm(request.POST or None)
                 return render(request, "register.html", {'form': form})
             elif (token != ""):
                 new_user = User.objects.create(username=login, password=token)
+                new_user.save()
+                new_user.refresh_from_db()
+                update_profile_signal(new_user, True)
+                new_user.profile.avatar = "default.jpeg"
                 new_user.save()
                 new_user = authenticate(request, username=login, password=token)
                 messages.success(request, f"You've successfully registered as {login}!")
                 return redirect("main")
         else:
-            form = RegistrationForm(request.POST)
+            form = RegistrationForm(request.POST or None)
             return render(request, "register.html", {'form': form})
     else:
-        form = RegistrationForm(request.POST)
+        form = RegistrationForm(request.POST or None)
         return render(request, "register.html", {'form': form})
 
 @login_required(login_url='login')
 def logout(request):
     logout_user(request)
     return redirect("login")
+
+@login_required(login_url='login')
+def profile(request):
+    if request.method == "POST":
+        form = UsernameForm(request.POST)
+        if form.is_valid():
+            print("form is valid")
+            new_login = form.cleaned_data['login']
+            if (User.objects.filter(username=new_login).exists()):
+                print("username already taken")
+                messages.error(request, f"This username is already taken: {new_login}. C'mon, be more creative!")
+                form = UsernameForm(request.POST)
+                return render(request, "profile.html", {'form': form, 'username': request.user.username})
+            else:
+                print("username updated")
+                user = User.objects.get(username=request.user.username)
+                user.username = new_login
+                user.save()
+                messages.success(request, f"You've changed your username to: {new_login}")
+                return redirect("main")
+        else:
+            print("invalid form")
+            form = UsernameForm(request.POST)
+            messages.error(request, f"INVALID FORM, TRY AGAIN.")
+            return render(request, "profile.html", {'form': form, 'username': request.user.username})
+    else:
+        print("form is not in post req")
+        form = UsernameForm(request.POST)
+        return render(request, "profile.html", {'form': form, 'username': request.user.username})
+    
 
 @login_required(login_url='login')
 def pollindex(request):

@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import environ
+import os
 
 env = environ.Env()
 environ.Env.read_env()
@@ -35,7 +36,6 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
-    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'polls.apps.PollsConfig',
     'rest_framework',
     'bootstrap5',
-    'channels',
+    #(DEPRECATED) 'daphne',
+    #(DEPRECATED) 'channels',
 ]
 
 MIDDLEWARE = [
@@ -78,7 +79,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'app.wsgi.application'
-ASGI_APPLICATION = 'app.asgi.application'
+# (DEPRECATED) ASGI_APPLICATION = 'app.asgi.application'
 
 
 # Database
@@ -141,12 +142,19 @@ CORS_ORIGIN_WHITELIST = [
     "http://localhost:3000",
 ]
 
+''' DEPRECATED
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels.layers.InMemoryChannelLayer"
     }
 }
+'''
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'uploaded')
+MEDIA_URL = '/uploaded/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'media')
+STATIC_URL = '/media/'

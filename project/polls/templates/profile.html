@@ -1,0 +1,25 @@
+{% extends "base_generic.html" %}
+
+{% block content %}
+  <form class="form-change" action="{% url 'profile' %}" method="post">
+    <h1 class="h3 mb-3 font-weight-bold text-center">Hello, {{username}}. You can change your username and update your avatar here.</h1>
+    {% csrf_token %}
+
+    <div class="avatar-div">
+      <p>"{{ profile.avatar.url }}"</p>
+      <img src="{{ profile.avatar.url }}">
+
+    </div>
+    <div class="d-flex flex-column">
+      {{ form }}
+    </div>
+    {% if messages %}
+      <ul class="messages text-danger small">
+        {% for message in messages %}
+          <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <button class="btn btn-lg btn-primary btn-block mt-5" type="submit">CHANGE</button>
+  </form>
+{% endblock %}
