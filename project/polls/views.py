@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.http import HttpResponse
 from rest_framework import viewsets
 from .forms import RegistrationForm, UsernameForm
-from .serializers import UserSerializer
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.auth import login as login_user
@@ -11,18 +11,21 @@ from django.contrib.auth import logout as logout_user
 from django.contrib.auth.decorators import login_required
 from rest_framework.views import APIView
 from django.http import JsonResponse
+#from .serializers import UserSerializer
 from .models import Profile
-from .signals import update_profile_signal
+#from .signals import update_profile_signal
 
 import os
 import environ
 import json
 import requests
 
+
+'''
 class UserView(viewsets.ModelViewSet): #implementation for CRUD operations by default.
     serializer_class = UserSerializer
     queryset = User.objects.all()
-
+'''
 
 ''' DEPRECATED
 def room(request, room_name):
@@ -110,13 +113,13 @@ def register(request):
                 messages.error(request, f"This username is already taken: {login}. C'mon, be more creative!")
                 form = RegistrationForm(request.POST or None)
                 return render(request, "register.html", {'form': form})
+            
             elif (token != ""):
                 new_user = User.objects.create(username=login, password=token)
                 new_user.save()
-                new_user.refresh_from_db()
-                update_profile_signal(new_user, True)
-                new_user.profile.avatar = "default.jpeg"
-                new_user.save()
+                profile = Profile.objects.create(user=new_user)
+                profile.match_history = json.dumps([{'p1':0,'p2':0,'opponent':'nkahrima'}])
+                new_user.profile.save()
                 new_user = authenticate(request, username=login, password=token)
                 messages.success(request, f"You've successfully registered as {login}!")
                 return redirect("main")
@@ -132,8 +135,11 @@ def logout(request):
     logout_user(request)
     return redirect("login")
 
+
 @login_required(login_url='login')
 def profile(request):
+    #image_file = request.FILES['image_file'].file.read()
+
     if request.method == "POST":
         form = UsernameForm(request.POST)
         if form.is_valid():
@@ -159,8 +165,8 @@ def profile(request):
     else:
         print("form is not in post req")
         form = UsernameForm(request.POST)
-        return render(request, "profile.html", {'form': form, 'username': request.user.username})
-    
+        return render(request, "profile.html", {'form': form, 'username': request.user.username, 'match_history': Profile.objects.get(user=request.user).match_history, 'avatar': Profile.objects.get(user=request.user).avatar})
+
 
 @login_required(login_url='login')
 def pollindex(request):

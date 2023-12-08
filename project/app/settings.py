@@ -154,7 +154,10 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-MEDIA_ROOT = os.path.join(BASE_DIR, 'uploaded')
-MEDIA_URL = '/uploaded/'
+#AUTH_USER_MODEL = 'polls.Profile'
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'profile/')
+MEDIA_URL = '/profile/'
+'''
 STATIC_ROOT = os.path.join(BASE_DIR, 'media')
-STATIC_URL = '/media/'
+STATIC_URL = '/media/'''
