@@ -1,16 +1,15 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-  <form class="form-change" action="{% url 'profile' %}" method="post">
-    <h1 class="h3 mb-3 font-weight-bold text-center">Hello, {{username}}. You can change your username and update your avatar here.</h1>
+  <form class="form-change" action="{% url 'profile' %}" method="post" style="display:flex;flex-direction:column;justify-content:center;align-items:center">
+    <h1 class="h3 mb-3 font-weight-bold text-center">Hello, {{username}}. You can update your <em style="color:rgb(204, 187, 33);">username</em> and <em style="color:rgb(204, 187, 33);"> avatar </em> here.</h1>
     {% csrf_token %}
-    <div class="avatar-div">
+    <div class="avatar-div" style="margin-top:5%">
       {% load static %}
       <img src="{% static avatar.url %}" alt="profile-pic" id="profile-pic">
     </div>
     <div class="d-flex flex-column">
-      {{ username_form }}
-      {{ avatar_form }}
+      {{ form }}
     </div>
     {% if messages %}
       <ul class="messages text-danger small">
@@ -20,6 +19,7 @@
       </ul>
     {% endif %}
     <button class="btn btn-lg btn-primary btn-block mt-5" type="submit" name="change-username">CHANGE USERNAME</button>
+    <button class="btn btn-lg btn-primary btn-block mt-5" type="submit" name="change-avatar">CHANGE AVATAR</button>
   </form>
 
 {% endblock %}

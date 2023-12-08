@@ -47,9 +47,10 @@ border-top-right-radius: 0;
 }
 
 a:hover{
-    opacity: 0.2 !important; 
-    transition-duration: 2s !important;
-    transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    color: rgb(255, 196, 0) !important;
+    font-size:19px;
+    transition-duration: 0.5s !important;
+    transition-timing-function: ease-in-out !important;
 }
 
 .avatar-div{

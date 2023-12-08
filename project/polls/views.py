@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import HttpResponse
 from rest_framework import viewsets
-from .forms import RegistrationForm, UsernameForm, AvatarForm
+from .forms import RegistrationForm, ProfileForm
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
@@ -138,41 +138,38 @@ def logout(request):
 
 @login_required(login_url='login')
 def profile(request):
-    #image_file = request.FILES['image_file'].file.read()
     if request.method == "POST":
-        username_form = UsernameForm(request.POST)
-        avatar_form = AvatarForm(request.POST, request.FILES)
-        if username_form.is_valid() and avatar_form.is_valid():
-            print("form is valid")
+        form = ProfileForm(request.POST)
+        if form.is_valid():
             if 'change-username' in request.POST:
-                new_login = username_form.cleaned_data['login']
+                new_login = form.cleaned_data['login']
                 if (User.objects.filter(username=new_login).exists()):
-                    print("username already taken")
                     messages.error(request, f"This username is already taken: {new_login}. C'mon, be more creative!")
-                    username_form = UsernameForm(request.POST)
-                    return render(request, "profile.html", {'form': {username_form, avatar_form}, 'username': request.user.username, 'avatar': Profile.objects.get(user=request.user).avatar})
-                else:
-                    print("username updated")
+                    form = ProfileForm(request.POST)
+                    return render(request, "profile.html", {'form': form, 'username': request.user.username, 'avatar': Profile.objects.get(user=request.user).avatar})
+                elif (new_login != ""):
                     user = User.objects.get(username=request.user.username)
                     user.username = new_login
                     user.save()
                     messages.success(request, f"You've changed your username to: {new_login}")
+                    return render(request, "profile.html", {'form': form, 'username': request.user.username, 'avatar': Profile.objects.get(user=request.user).avatar})
             if 'change-avatar' in request.POST:
-                print("avatar updated")
-                request.user.profile.avatar = avatar_form.cleaned_data['avatar']
-                request.user.profile.refresh_from_db()
-                request.user.profile.save()
-                messages.success(request, f"You've changed your avatar.")
+                if (request.FILES.get('photo') != None):
+                    request.user.profile.avatar = request.FILES.get('photo')
+                    request.user.profile.save()
+                    messages.success(request, f"You've changed your avatar.")
+                    return render(request, "profile.html", {'form': form, 'username': request.user.username, 'avatar': Profile.objects.get(user=request.user).avatar})
+                else:
+                    return render(request, "profile.html", {'form': form, 'username': request.user.username, 'avatar': Profile.objects.get(user=request.user).avatar})
+
         else:
-            print("invalid form")
-            username_form = UsernameForm(request.POST)
+            form = ProfileForm(request.POST)
             messages.error(request, f"INVALID FORM, TRY AGAIN.")
-            return render(request, "profile.html", {'form': [username_form, avatar_form], 'username': request.user.username, 'avatar': Profile.objects.get(user=request.user).avatar})
+            return render(request, "profile.html", {'form': form, 'username': request.user.username, 'avatar': Profile.objects.get(user=request.user).avatar})
     else:
         print("form is not in post req")
-        username_form = UsernameForm(request.POST)
-        avatar_form = AvatarForm(request.POST, request.FILES)
-        return render(request, "profile.html", {'form': [username_form, avatar_form], 'username': request.user.username, 'match_history': Profile.objects.get(user=request.user).match_history, 'avatar': Profile.objects.get(user=request.user).avatar})
+        form = ProfileForm(request.POST)
+        return render(request, "profile.html", {'form': form, 'username': request.user.username, 'match_history': Profile.objects.get(user=request.user).match_history, 'avatar': Profile.objects.get(user=request.user).avatar})
 
 
 @login_required(login_url='login')
