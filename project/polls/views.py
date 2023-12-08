@@ -14,8 +14,8 @@ from django.http import JsonResponse
 from .models import Profile
 from .signals import update_profile_signal
 
-
-
+import os
+import environ
 import json
 import requests
 
@@ -52,8 +52,8 @@ def auth42(request):
     code = request.GET.get('code')
     body = {
     'grant_type': 'authorization_code',
-    'client_id': 'u-s4t2ud-b4b7ae8076ad4f54587fc9c6a82d2683386f891c8a757445c10a4bfd57c3a636',
-    'client_secret': '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',
+    'client_id': os.environ.get('CLIENT_ID'),
+    'client_secret': os.environ.get('CLIENT_SECRET'),
     'code': f'{code}',
     'redirect_uri': 'http://localhost:8000/auth42'
     }
