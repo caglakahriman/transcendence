@@ -6,3 +6,4 @@ django-channels
 django-environ
 psycopg
 psycopg2-binary
+Pillow

@@ -18,12 +18,12 @@
       <a href="{% url 'profile' %}" class="navbar-brand">profile</a>
       <a class="text-warning fw-bold" href="{% url 'logout' %}">log out</a>
     </nav>
-    <div class="container-fluid d-sm-flex h-100">
-      <div class="col-sm-2 pt-5">
-        {% block sidebar %}
-        {% include 'sidebar.html' %}
-        {% endblock %}
-      </div>
+    <div class="col-sm-2 pt-5">
+      {% block sidebar %}
+      {% include 'sidebar.html' %}
+      {% endblock %}
+    </div>
+    <div class="container-fluid d-sm-flex h-100" style="width:70%">
       <div class="row p-5 m-4">
         <div class="w-20 d-sm-flex flex-column justify-content-center">{% block content %}{% endblock %}</div>
       </div>

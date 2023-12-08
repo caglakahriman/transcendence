@@ -6,7 +6,6 @@ class RegistrationForm(forms.Form):
 
 class UsernameForm(forms.Form):
     login = forms.CharField(label='New Username', max_length=10)
-    token = forms.CharField(label='New Username', max_length=10)
 
 class AvatarForm(forms.Form):
     avatar = forms.ImageField(label='New Avatar', required=False)
