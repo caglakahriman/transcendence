@@ -13,10 +13,10 @@
   </head>
   <body>
     <nav class="navbar navbar-dark bg-dark p-3">
-      <a class="text-warning fw-bold" href="https://api.intra.42.fr/oauth/authorize?client_id=u-s4t2ud-b4b7ae8076ad4f54587fc9c6a82d2683386f891c8a757445c10a4bfd57c3a636&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fauth42&response_type=code">42auth</a>
-      <a href="{% url 'main' %}" class="navbar-brand">transcendence</a>
-      <a href="{% url 'profile' %}" class="navbar-brand">profile</a>
-      <a class="text-warning fw-bold" href="{% url 'logout' %}">log out</a>
+      <a class="text-warning fw-bold" href="https://api.intra.42.fr/oauth/authorize?client_id=u-s4t2ud-b4b7ae8076ad4f54587fc9c6a82d2683386f891c8a757445c10a4bfd57c3a636&redirect_uri=http%3A%2F%2Flocalhost%3A8000%2Fauth42&response_type=code" style="font-size:20px">42auth</a>
+      <a href="{% url 'main' %}" class="navbar-brand"><mark style="background-color: yellow">transcendence</mark></a>
+      <a href="{% url 'profile' %}" class="navbar-brand"><mark style="background-color: yellow">profile</mark></a>
+      <a class="text-warning fw-bold" href="{% url 'logout' %}" style="font-size: 20px">log out</a>
     </nav>
     <div class="col-sm-2 pt-5">
       {% block sidebar %}

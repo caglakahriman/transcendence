@@ -47,8 +47,6 @@ border-top-right-radius: 0;
 }
 
 a:hover{
-    color: rgb(255, 196, 0) !important;
-    font-size:19px;
     transition-duration: 0.5s !important;
     transition-timing-function: ease-in-out !important;
 }
