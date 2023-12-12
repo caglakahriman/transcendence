@@ -11,8 +11,11 @@ from django.contrib.auth import logout as logout_user
 from django.contrib.auth.decorators import login_required
 from rest_framework.views import APIView
 from django.http import JsonResponse
-#from .serializers import UserSerializer
+from .serializers import UserSerializer
 from .models import Profile
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 #from .signals import update_profile_signal
 
 import os
@@ -21,9 +24,14 @@ import json
 import requests
 
 
-'''
+
 class UserView(viewsets.ModelViewSet): #implementation for CRUD operations by default.
     serializer_class = UserSerializer
+    queryset = User.objects.all()
+
+'''
+class GameView(viewsets.ModelViewSet): #implementation for CRUD operations by default.
+    serializer_class = GameSerializer
     queryset = User.objects.all()
 '''
 

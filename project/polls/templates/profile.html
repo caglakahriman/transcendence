@@ -5,6 +5,9 @@
     <h1 class="h3 mb-3 font-weight-bold text-center" style="width:70%; line-height: 60px;">Hello, {{username}}. You can update your <mark>username</mark> and <mark>avatar</mark> here.</h1>
     {% csrf_token %}
     <div class="avatar-div" style="margin-top:5%">
+      {% if prod.image %}
+        <img src="{{ prod.image.url }}" alt="image here" class="prod-size">
+        {% endif %}
       {% load static %}
       <img src="{% static avatar.url %}" alt="profile-pic" id="profile-pic">
     </div>

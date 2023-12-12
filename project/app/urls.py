@@ -22,10 +22,9 @@ from rest_framework import routers
 from polls import views
 
 router = routers.DefaultRouter()
-#router.register(r'users', views.UserView, 'user')
+router.register(r'users', views.UserView, 'user')
 
 urlpatterns = [
-    #path('', include("polls.urls")),
     path('', view=views.main, name="main"),
     path('login/', view=views.login, name="login"),
     path('register/', view=views.register, name="register"),

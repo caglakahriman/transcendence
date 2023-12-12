@@ -3,6 +3,7 @@ django-rest-framework
 django-cors-headers
 django-bootstrap-v5
 django-channels
+django-snippet
 django-environ
 psycopg
 psycopg2-binary
