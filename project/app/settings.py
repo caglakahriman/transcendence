@@ -142,6 +142,10 @@ CORS_ORIGIN_WHITELIST = [
     "http://159.89.0.237:8080",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://159.89.0.237:8080",
+]
+
 ''' DEPRECATED
 CHANNEL_LAYERS = {
     "default": {
@@ -158,6 +162,3 @@ AUTHENTICATION_BACKENDS = [
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'profile/')
 MEDIA_URL = '/profile/'
-'''
-STATIC_ROOT = os.path.join(BASE_DIR, 'media')
-STATIC_URL = '/media/'''
