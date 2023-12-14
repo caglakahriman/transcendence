@@ -25,5 +25,5 @@ router = routers.DefaultRouter()
 router.register(r'users', views.UserView, 'user')
 
 urlpatterns = [
-    path('users/', include(router.urls)),
+    path('', include(router.urls)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
