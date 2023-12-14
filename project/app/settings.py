@@ -162,5 +162,5 @@ AUTHENTICATION_BACKENDS = [
 
 #AUTH_USER_MODEL = 'polls.Profile'
 
-MEDIA_ROOT = os.path.join(BASE_DIR, 'profile/')
+MEDIA_ROOT = os.path.join(BASE_DIR, '/avatars')
 MEDIA_URL = '/profile/'

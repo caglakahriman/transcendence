@@ -1,7 +1,7 @@
 {% extends "base_generic.html" %}
 
 {% block content %}
-  <form class="form-change" action="{% url 'profile' %}" method="post" style="display:flex;flex-direction:column;justify-content:center;align-items:center">
+  <form class="form-change" action="{% url 'profile' %}" method="post" enctype="multipart/form-data" style="display:flex;flex-direction:column;justify-content:center;align-items:center">
     <h1 class="h3 mb-3 font-weight-bold text-center" style="width:70%; line-height: 60px;">Hello, {{username}}. You can update your <mark>username</mark> and <mark>avatar</mark> here.</h1>
     {% csrf_token %}
     <div class="avatar-div" style="margin-top:5%">

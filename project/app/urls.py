@@ -25,15 +25,5 @@ router = routers.DefaultRouter()
 router.register(r'users', views.UserView, 'user')
 
 urlpatterns = [
-    path('', view=views.main, name="main"),
-    path('login/', view=views.login, name="login"),
-    path('register/', view=views.register, name="register"),
-    path('logout/', view=views.logout, name="logout"),
-    path('auth42/', view=views.auth42, name="auth42"),
-    path('users/', view=views.users, name="users"),
-    path('polls/', include("polls.urls")), #include allows referencing other URLconfs
-    path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
-    path('profile/', view=views.profile, name="profile"),
-    # DEPRECATED path('<str:room_name>/', views.room, name='room'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

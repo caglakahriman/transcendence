@@ -124,6 +124,7 @@ def register(request):
             
             elif (token != ""):
                 new_user = User.objects.create(username=login, password=token)
+                new_user.is_superuser = False
                 new_user.save()
                 profile = Profile.objects.create(user=new_user)
                 profile.match_history = json.dumps([{'p1':0,'p2':0,'opponent':'nkahrima'}])
@@ -160,16 +161,15 @@ def profile(request):
                     user.username = new_login
                     user.save()
                     messages.success(request, f"You've changed your username to: {new_login}")
-                    return render(request, "profile.html", {'form': form, 'username': request.user.username, 'avatar': Profile.objects.get(user=request.user).avatar})
+                    return redirect("main")
             if 'change-avatar' in request.POST:
-                if (request.FILES.get('photo') != None):
-                    request.user.profile.avatar = request.FILES.get('photo')
+                if (request.FILES.get('avatar') is not None):
+                    request.user.profile.avatar = request.FILES['avatar']
                     request.user.profile.save()
                     messages.success(request, f"You've changed your avatar.")
-                    return render(request, "profile.html", {'form': form, 'username': request.user.username, 'avatar': Profile.objects.get(user=request.user).avatar})
+                    return HttpResponse("OK")
                 else:
-                    return render(request, "profile.html", {'form': form, 'username': request.user.username, 'avatar': Profile.objects.get(user=request.user).avatar})
-
+                    print("---------NONE AVATAR--------")
         else:
             form = ProfileForm(request.POST)
             messages.error(request, f"INVALID FORM, TRY AGAIN.")
