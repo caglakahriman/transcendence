@@ -5,7 +5,7 @@ clean:
 fclean: clean
 	docker system prune -a --force
 	docker volume prune -a --force
-	rm -rf ./postgres_data
+	rm -rf /var/docker_volumes/database/*
 
 re: fclean all
 

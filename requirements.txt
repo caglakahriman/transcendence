@@ -5,6 +5,8 @@ django-bootstrap-v5
 django-channels
 django-snippet
 django-environ
+django-filter
+markdown
 psycopg
 psycopg2-binary
 Pillow

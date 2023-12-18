@@ -1,39 +1,50 @@
-version: '3.5'
+version: '3.6'
 
 volumes:
   postgres_data:
     driver: local
     driver_opts:
-            device: /home/cagla/data/database
+            device: /var/docker_volumes/database
             o: bind
             type: none
 
 
 services:
   db:
-    image: postgres
+    build: ./database/
+    hostname: postgres_db
     restart: always
     container_name: postgres_db
-    env_file:
-      - ./project/app/.env
+    environment:
+      - POSTGRES_DB=$${POSTGRES_DB}
+      - POSTGRES_USER=$${POSTGRES_USER}
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data]
-    ports:
-      - '5432:5432'
+      - ./tools/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "dbtest"]
-      interval: 5s
-      timeout: 20s
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 10s
       retries: 2
+    
+    networks:
+      - newone
     
 
   web:
+    hostname: backend
     build: .
     depends_on:
       db:
         condition: service_healthy
-    env_file:
-      - ./project/app/.env
     ports:
-      - '8000:8000'
-    restart: 'on-failure:10'
+      - 8100:8000
+    restart: 'on-failure:1'
+
+    networks:
+      - newone
+
+
+networks:
+  newone:
+    external: true
