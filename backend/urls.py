@@ -18,17 +18,17 @@ from django.contrib import admin
 from django.urls import path
 
 from rest_framework import routers
-from api.views import UserViewSet, ProfileViewSet, GameViewSet, TournamentViewSet 
+from api.views import UserViewSet, ProfileApiView, GameViewSet, TournamentViewSet 
 from django.urls import path, include
 
 router = routers.DefaultRouter()
 router.register(r'users', UserViewSet, 'user')
-router.register(r'profiles', ProfileViewSet, 'profile')
+#router.register(r'profiles', ProfileApiView.as_view(), 'profile')
 router.register(r'games', GameViewSet, 'game')
 router.register(r'tournaments', TournamentViewSet, 'tournament')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include(router.urls)),
-    path('authAPI/', include('rest_framework.urls'))
+    path('api/', include('api.urls')),
+    #path('authAPI/', include('rest_framework.urls'))
 ]

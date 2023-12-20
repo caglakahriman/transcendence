@@ -5,6 +5,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 import uuid
 
+
 class Profile(models.Model):
   user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
   token = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
