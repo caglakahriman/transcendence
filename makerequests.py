@@ -1,10 +1,13 @@
 import requests
+import json
 
-url = "http://localhost:8000/api/users/"
+url = "http://159.89.0.237:8100/api/users/"
 headers = {'Content-Type': 'application/json'}
-data = {"username": "test", "password": "hm"}
+data = {"id":2, "username": "testing", "password": "1234"}
 
-response = requests.post(url, headers=headers, json=data)
+resp = requests.post(url, headers=headers, json=data)
+print(resp.status_code)
 
-print(response.status_code)
-print(response.json())
+
+response = resp.json()
+print(json.dumps(response, indent=4, sort_keys=True))

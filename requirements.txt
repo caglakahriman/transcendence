@@ -10,3 +10,4 @@ markdown
 psycopg
 psycopg2-binary
 Pillow
+uuid
