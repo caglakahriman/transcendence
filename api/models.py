@@ -29,15 +29,17 @@ def save_user_profile(sender, instance, **kwargs):
 
 class Game(models.Model):
   date = models.DateTimeField(auto_now_add=True)
-  player1_id = models.IntegerField(default=0)
-  player2_id = models.IntegerField(default=0)
+  player1_token = models.IntegerField(default=0)
+  player2_token = models.IntegerField(default=0)
   player1_score = models.IntegerField(default=0)
   player2_score = models.IntegerField(default=0)
   winner_id = models.IntegerField(default=0)
+  state = models.BooleanField(default=False) #game is finished
 
 class Tournament(models.Model):
   date = models.DateTimeField(auto_now_add=True)
   players = JSONField(default=list)
-  winner1_id = models.IntegerField(default=0)
-  winner2_id = models.IntegerField(default=0)
+  winner1_token = models.IntegerField(default=0)
+  winner2_token = models.IntegerField(default=0)
   waitlist = JSONField(default=list)
+  state = models.BooleanField(default=False) #tournament is finished

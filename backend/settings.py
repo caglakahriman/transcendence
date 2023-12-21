@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-&l#6wh30)ch)17-l65!+c9@1$jpswmfuy2-e!n(+v6bu-jka4s'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = False ##DOCKERDA DEĞİŞŞŞ
 
 ALLOWED_HOSTS = ['*']
 
@@ -141,10 +141,18 @@ CORS_ORIGIN_ALLOW_ALL = True
 CSRF_TRUSTED_ORIGINS = [
     "http://159.89.0.237:8080",
     "http://ftpong.duckdns.org:8080",
+    "http:://localhost:8000",
 ]
 
 AUTHENTICATION_BACKENDS = [
   'django.contrib.auth.backends.ModelBackend',
 ]
 
+''' # CONFIGURE THIS PART TO PREVENT EVERYONE FROM USING THE API
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAdminUser',
+    ]
+}
+'''
 APPEND_SLASH = False

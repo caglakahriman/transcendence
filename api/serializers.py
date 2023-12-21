@@ -3,15 +3,13 @@ from django.contrib.auth.models import User
 from .models import Profile, Game, Tournament
 
 
-
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id','username']
+        fields = ['username', 'password']
 
 class ProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer(required=True)
+    #user = UserSerializer(required=True)
     class Meta:
         model = Profile
         fields = ['user', 'avatar', 'total_played', 'wins', 'losses', 'friends', 'lan', 'nickname', 'is_online']
