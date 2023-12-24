@@ -155,4 +155,4 @@ REST_FRAMEWORK = {
     ]
 }
 '''
-APPEND_SLASH = False
+APPEND_SLASH = True

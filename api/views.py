@@ -1,31 +1,40 @@
 from rest_framework import viewsets
 from django.contrib.auth.models import User
-from .serializers import UserSerializer, GameSerializer, ProfileSerializer, GameSerializer, TournamentSerializer
+from .serializers import UserSerializer, GameSerializer, ProfileSerializer, TournamentSerializer
 from .models import Game, Profile, Tournament
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 
+from django.contrib.auth import authenticate
+
+
 @api_view(['POST'])
 def register(request):
-    serializer = UserSerializer(data=request.data)
-    if (serializer.is_valid()):
-        if (User.objects.filter(username=request.data["username"]).exists()):
-            return Response({"error": "Username already exists."})
-        else:
-            serializer.save()
+    if (User.objects.filter(username=request.data["username"]).exists()):
+        return Response({"error": "Username already exists."})
     else:
-        return Response({"error": "Invalid data."})
+        user = User.objects.create_user(username=request.data["username"])
+        user.set_password(request.data["password"])
+        user.save()
+        return Response({
+            "username": user.username,
+            "token": user.profile.token,
+        })   
 
-@api_view(["GET"])
+
+@api_view(["POST"])
 def login(request):
     if (User.objects.filter(username=request.data["username"]).exists()):
         user = User.objects.get(username=request.data["username"])
-        if (user.password == request.data["password"]):
+        try:
+            user.check_password(request.data["password"])
+            user_auth = authenticate(request, username=user.username, password=user.password)
+            if user_auth is not None:
+                login(request, user)
             return Response({
                 "username": user.username,
-                "token": user.profile.token,
             })
-        else:
+        except:
             return Response({"error": "Wrong password."})
     else:
         return Response({"error": "User not found."})
