@@ -13,6 +13,9 @@ urlpatterns = [
     path('updatelang/', updatelang),
     path('updatename/', updatename),
     path('updatestats/', updatestats),
+    path('updateprofile/', updateprofile),
     path('getuserstats/', getuserstats),
-    path('getuser/', getuser),
+    path('getprofile/', get_profile),
+    path('/invite', invite),
+    path('/createtournament', createtournament),
 ]

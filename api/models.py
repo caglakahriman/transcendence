@@ -27,19 +27,22 @@ def create_user_profile(sender, instance, created, **kwargs):
 def save_user_profile(sender, instance, **kwargs):
   instance.profile.save()
 
-class Game(models.Model):
-  date = models.DateTimeField(auto_now_add=True)
+class Game(models.Model): #oyun game id
+  date = models.DateTimeField(auto_now_add=True)#ibo
   player1_token = models.IntegerField(default=0)
-  player2_token = models.IntegerField(default=0)
-  player1_score = models.IntegerField(default=0)
-  player2_score = models.IntegerField(default=0)
-  winner_id = models.IntegerField(default=0)
+  player2_token = models.IntegerField(default=0) 
+  player1_score = models.IntegerField(default=0) #ibo
+  player2_score = models.IntegerField(default=0)#ibo
+  winner_token = models.IntegerField(default=0)#ibo
   state = models.BooleanField(default=False) #game is finished
 
 class Tournament(models.Model):
+  tournament_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
   date = models.DateTimeField(auto_now_add=True)
-  players = JSONField(default=list)
+  creator_nickname = models.CharField(max_length=30)
+  creator_username = models.CharField(max_length=30)
+  final_players = JSONField(default=list)
   winner1_token = models.IntegerField(default=0)
   winner2_token = models.IntegerField(default=0)
   waitlist = JSONField(default=list)
-  state = models.BooleanField(default=False) #tournament is finished
+  state = models.IntegerField(default=0) #0: not started, 1: started, 2: finished

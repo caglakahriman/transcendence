@@ -46,4 +46,4 @@ services:
 
 networks:
   newone:
-    external: true
+    driver: bridge

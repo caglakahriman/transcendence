@@ -140,7 +140,7 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 CSRF_TRUSTED_ORIGINS = [
     "http://159.89.0.237:8080",
-    "http://ftpong.duckdns.org:8080",
+    "http://ftpong.duckdns.org:8100",
     "http:://localhost:8000",
 ]
 
