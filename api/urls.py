@@ -16,6 +16,6 @@ urlpatterns = [
     path('updateprofile/', updateprofile),
     path('getuserstats/', getuserstats),
     path('getprofile/', get_profile),
-    path('/invite', invite),
-    path('/createtournament', createtournament),
+    path('invite/', invite),
+    path('createtournament/', createtournament),
 ]

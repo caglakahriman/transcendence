@@ -204,3 +204,23 @@ def createtournament(request):
             "success":False,
             "error":"Something went wrong."
         })
+    
+@api_view(["POST"])
+def updateprofile(request):
+    if(Profile.objects.filter(request.data["token"]).exists()):
+        try:
+            profile = Profile.objects.get(token=request.data["token"])
+            if (request.data["username"] != "" and User.objects.filter(username=request.data["username"]).exists() == False):
+                profile.user.username = request.data["username"]
+            if (request.data["avatar"] != ""):
+                profile.avatar = request.data["avatar"]
+            if (request.data["lan"] != "" and (request.data["lan"] == "tr" or request.data["lan"] == "en" or request["lan"] == "fr")):
+                profile.lan = request.data["lan"]
+            profile.save()
+            return Response({
+                "success":True,
+            })
+        except:
+            return Response({
+                "success":False,
+            })
