@@ -1,17 +1,45 @@
-from rest_framework import viewsets
-from django.contrib.auth.models import User
 from .serializers import UserSerializer, GameSerializer, ProfileSerializer, TournamentSerializer
 from .models import Game, Profile, Tournament
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.authentication import TokenAuthentication
 
-from django.contrib.auth import authenticate
+@api_view(['POST'])
+def register_user(request):
+    serializer = UserSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        Profile.objects.create(user=user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-def get_user_games(user):
-    games = Game.objects.all(player1_token=user.profile.token).append(Game.objects.all(player2_token=user.profile.token))
-    return games
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def authenticate_user(request):
+    # Use the ObtainAuthToken view for token generation
+    obtain_auth_token_view = ObtainAuthToken.as_view()
+    response = obtain_auth_token_view(request)
 
+    if response.status_code == 200:
+        # Authentication successful, return the token
+        return Response({'token': response.data.get('token')})
+    else:
+        # Authentication failed, return an error response
+        return Response({'error': 'Unable to authenticate with provided credentials'}, status=response.status_code)
 
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])  # Use TokenAuthentication or the authentication method you prefer
+@permission_classes([IsAuthenticated])
+def authenticated_test(request):
+    user = request.user
+    return Response({'message': f'Hello, {user.username}! You are authenticated.'})
+
+'''
 @api_view(['POST'])
 def register(request):
     if (User.objects.filter(username=request.data["username"]).exists()):
@@ -30,8 +58,23 @@ def register(request):
             })
 
 
+class UserLoginAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        # Use the obtain_auth_token view for token generation
+        response = obtain_auth_token(request)
+        # You can customize the response if needed
+        # For example, you might want to return additional user information
+        return Response({'token': response.data['token'], 'user_id': request.user.id})
+
 @api_view(["POST"])
 def login(request):
+    django_request = request._request
+    response = obtain_auth_token(django_request)
+    return Response({'token': response.data['token'], 'user_id': django_request.user.id})
+    response = obtain_auth_token(request)
+    return Response({'token': response.data['token'], 'user_id': request.user.id})
     if (User.objects.filter(username=request.data["username"]).exists()):
         try:
             user = User.objects.get(username=request.data["username"])
@@ -46,28 +89,38 @@ def login(request):
     else:
         return Response({"error": "User not found."})
 
+
+
+def get_user_games(user):
+    games = Game.objects.all(player1_token=user.profile.token).append(Game.objects.all(player2_token=user.profile.token))
+    return games
+
+
 @api_view(["GET"]) #token password olarak döndü?
 def userlist(request): # responselar belirli değil, spesifikleştirilecek
     users = User.objects.all()
     serializer = UserSerializer(users, many=True)
     return Response(serializer.data)
 
-@api_view(["GET"])
+@api_view(["POST"])
 def friendslist(request):
-    token = request.headers.get('Authorization').split('Bearer ')[1]
-    print(token)
-    user = User.objects.get(token=request.user.profile.token)
-    friends = user.profile.friends
-    return Response(friends)
+    profile = Profile.objects.get(token=request.data["token"])
+    if (profile.friends != 0):
+        return Response({
+            "success": True,
+            "friends": profile.friends
+        })
+    else:
+        return Response({
+            "success": False,
+        })
 
 @api_view(["POST"])
 def addfriend(request):
     try:
-        user = User.objects.get(token=request.data["token"])
-        friends = user.profile.friends
-        friends.append(request.data["friend"])
-        user.profile.friends = friends
-        user.save()
+        profile = Profile.objects.get(token=request.data["token"])
+        profile.friends.append(request.data["friend"])
+        profile.save()
         return Response({"success": True})
     except:
         return Response({"success": False})
@@ -75,11 +128,9 @@ def addfriend(request):
 @api_view(["POST"])
 def removefriend(request):
     try:
-        user = User.objects.get(token=request.data["token"])
-        friends = user.profile.friends
-        friends.remove(request.data["friend"])
-        user.profile.friends = friends
-        user.save()
+        profile = Profile.objects.get(token=request.data["token"])
+        profile.friends.remove(request.data["friend"])
+        profile.save()
         return Response({"success": True})
     except:
         return Response({"success": False})
@@ -126,14 +177,16 @@ def getuserstats(request):
     games = Game.objects.all(player1_token=request.data["token"]).append(Game.objects.all(player2_token=request.data["token"]))
     return Response(games)
 
+'''
+'''
 @api_view(["GET"]) #create game iboya atılacak, {game_id, player1_token, player2_token}
 def creategame(request):
     game = Game.objects.create();
     #oyun oluşturan ve oyunu oynayan herkesin is_gaming'i True olmalı.
     post_data = {'game_id': game.id, 'player1_token': '', 'player2_token': ''}
     response = requests.post('http://example.com', data=post_data)
-    return Response(response)
-
+    return Response(response)'''
+'''
 
 @api_view(["GET"])
 def gettournaments(request):
@@ -263,3 +316,5 @@ def updateprofile(request):
             return Response({
                 "success":False,
             })
+
+'''

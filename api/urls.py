@@ -1,33 +1,11 @@
 from django.urls import path
 from api.views import *
 from django.urls import path, include
+from .views import *
+from rest_framework.authtoken.views import obtain_auth_token
 
 urlpatterns = [
-    path('register/', register),
-    path('login/', login),
-    path('userlist/', userlist),
-
-    # FRIENDS #################################
-    path('friendslist/', friendslist),
-    path('addfriend/', addfriend),
-    path('removefriend/', removefriend),
-    ###########################################
-
-    path('updateavatar/', updateavatar),
-    path('updatelang/', updatelang),
-    path('updatename/', updatename),
-
-    path('updatestats/', updatestats),
-    path('getuserstats/', getuserstats),
-    
-    # PROFILE #################################
-    path('updateprofile/', updateprofile),
-    path('getprofile/', get_profile),
-    ###########################################
-    
-    # TOURNAMENTS #############################
-    path('createTournament/', createTournament),
-    path('inviteTournament/', inviteTournament),
-    path('acceptTournament/', inviteTournament),
-    ###########################################
+  path('register/', register_user, name='register'),
+  path('auth/', obtain_auth_token, name='auth'),
+  path('authtest/', authenticated_test, name='authtest'),
 ]
