@@ -1,11 +1,15 @@
 import requests
 import json
 
-url_docker = "http://159.89.0.237:8100/register/" #changed slash settings.py
+url_docker = "http://159.89.0.237:8100/friendslist/" #changed slash settings.py
 
 url_local = "http://localhost:8000/login/"
 
-headers = {'Content-Type': 'application/json',}
+headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + '123123123',
+    }
+
 
 data = {"username": "user", "password":"123"}
 

@@ -7,6 +7,10 @@ from rest_framework.decorators import api_view
 
 from django.contrib.auth import authenticate
 
+def get_user_games(user):
+    games = Game.objects.all(player1_token=user.profile.token).append(Game.objects.all(player2_token=user.profile.token))
+    return games
+
 
 @api_view(['POST'])
 def register(request):
@@ -50,6 +54,8 @@ def userlist(request): # responselar belirli değil, spesifikleştirilecek
 
 @api_view(["GET"])
 def friendslist(request):
+    token = request.headers.get('Authorization').split('Bearer ')[1]
+    print(token)
     user = User.objects.get(token=request.user.profile.token)
     friends = user.profile.friends
     return Response(friends)
@@ -122,16 +128,12 @@ def getuserstats(request):
 
 @api_view(["GET"]) #create game iboya atılacak, {game_id, player1_token, player2_token}
 def creategame(request):
-    post_data = {'player1_token': '', 'player2_token': ''}
+    game = Game.objects.create();
+    #oyun oluşturan ve oyunu oynayan herkesin is_gaming'i True olmalı.
+    post_data = {'game_id': game.id, 'player1_token': '', 'player2_token': ''}
     response = requests.post('http://example.com', data=post_data)
     return Response(response)
 
-@api_view(["POST"])
-def createtournament(request):
-    serializer = TournamentSerializer(data=request.data)
-    if (serializer.is_valid()):
-        serializer.save()
-    return Response(serializer.data)
 
 @api_view(["GET"])
 def gettournaments(request):
@@ -147,63 +149,100 @@ def getgames(request):
 
 @api_view(["GET"])
 def get_profile(request):
-    if (request.data["token"] == request.user.profile.token):
+    profile = Profile.objects.get(token=request.data["token"])
+    if (profile.user_id == User.objects.get(username=request.data["username"]).id):
         #my_profile
-        user = request.user
+        user = User.objects.get(token=request.data["token"])
+        match_history = get_user_games(user)
         return Response({
             "success":True,
             "username": user.username,
             "friends_count": len(user.profile.friends),
             "avatar": user.profile.avatar,
             "online_status": user.profile.is_online,
-            "match_history": user.profile.match_history,
+            "match_history": match_history,
         })
     else:
         #other_profile
-        profile = Profile.objects.get(token=request.data["token"])
-        user_id = profile.user_id
-        user = User.objects.get(id=user_id)
+        user = User.objects.get(username=request.data["username"])
+        match_history = get_user_games(user)
         return Response({
             "success":True,
             "username": user.username,
-            "friends_count": len(profile.friends),
-            "avatar": profile.avatar,
-            "online_status": profile.is_online,
-            "match_history": user.profile.match_history,
+            "friends_count": len(user.profile.friends),
+            "avatar": user.profile.avatar,
+            "online_status": user.profile.is_online,
+            "match_history": match_history,
         })
-
+    
+################# TOURNAMENT ENDPOINTS -START- #################
 @api_view(["POST"])
-def invite(request):
-    friend = User.objects.get(username=request.data["username"])
-    if (friend.profile.is_online == False):
-        return Response({
-            "success":False,
-            "error":"User is offline."
-        })
-    else:
+def createTournament(request):
+    try:
+        tournament = Tournament.objects.create(creator_token=request.data["token"])
+        tournament.waitlist.append(request.data["token"])
+        tournament.save()
+        user = Profile.objects.filter(token=request.data["token"])
+        user.is_gaming = True
         return Response({
             "success":True,
-            "count": 0, #tournament players count
-            "tournament_id": 0, #tournament id
-            "token": friend.profile.token,
+            "waiting_list": len(tournament.waitlist),
+            "tournament_id": tournament.tournament_id,
+        })
+    except:
+        return Response({
+            "success":False,
         })
 
 
 @api_view(["POST"])
-def createtournament(request):
+def inviteTournament(request):
     try:
-        tournament = Tournament.objects.create(creator_nickname=request.data["nickname"], creator_username=request.data["token"])
+        if (User.objects.filter(username=request.data["username"]).exists() == False):
+            return Response({
+                "success":False,
+                "error":"Username not found."
+            })
+        else:
+            friend = User.objects.get(username=request.data["username"])
+            if (friend.profile.is_online == False):
+                return Response({
+                    "success":False,
+                    "error":"User is offline."
+                })
+            else:
+                user = User.objects.get(token=request.data["token"])
+                tournament = Tournament.objects.last(creator_token=user.profile.token)
+                return Response({
+                    "success":True,
+                    "count": len(tournament.waitlist),
+                    "tournament_id": tournament.tournament_id,
+                    "token": friend.profile.token,
+            })
+    except:
+        return Response({
+            "success":False,
+            "error":"Something went wrong.",
+        })
+
+@api_view(["POST"])
+def acceptTournament(request):
+    try:
+        tournament = Tournament.objects.get(tournament_id=request.data["tournament_id"])
+        tournament.waitlist.append(request.data["token"])
         tournament.save()
         return Response({
             "success":True,
             "waiting_list": tournament.waitlist,
-            "tournament_id": tournament.tournament_id,
+            "count": len(tournament.waitlist), #tournament players count
+            "tournament_id": 0, #tournament id
         })
     except:
         return Response({
             "success":False,
             "error":"Something went wrong."
         })
+################# TOURNAMENT ENDPOINTS -END- #################   
     
 @api_view(["POST"])
 def updateprofile(request):
