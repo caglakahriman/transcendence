@@ -1,5 +1,5 @@
 from .serializers import UserSerializer, GameSerializer, ProfileSerializer, TournamentSerializer
-from .models import Game, Profile, Tournament
+from .models import Game, Profile, Tournament, User
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny
@@ -8,6 +8,26 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.authtoken.models import Token
+from django.contrib.auth import authenticate, login
+from django.shortcuts import get_object_or_404
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@authentication_classes([TokenAuthentication])
+def login_user(request):
+    try:
+        user = User.objects.get(username=request.data["username"])
+        if user.check_password(request.data["password"]):
+            token = Token.objects.get_or_create(user=user)
+            return Response({
+                'success': True,
+                'token': str(token),
+            })
+        else:
+            return Response({"error": "Invalid password."}, status=401)
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=404)
 
 @api_view(['POST'])
 def register_user(request):
@@ -15,81 +35,87 @@ def register_user(request):
     if serializer.is_valid():
         user = serializer.save()
         Profile.objects.create(user=user)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                'success': True,
+            }
+        )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def authenticate_user(request):
-    # Use the ObtainAuthToken view for token generation
-    obtain_auth_token_view = ObtainAuthToken.as_view()
-    response = obtain_auth_token_view(request)
-
-    if response.status_code == 200:
-        # Authentication successful, return the token
-        return Response({'token': response.data.get('token')})
-    else:
-        # Authentication failed, return an error response
-        return Response({'error': 'Unable to authenticate with provided credentials'}, status=response.status_code)
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])  # Use TokenAuthentication or the authentication method you prefer
 @permission_classes([IsAuthenticated])
 def authenticated_test(request):
     user = request.user
-    return Response({'message': f'Hello, {user.username}! You are authenticated.'})
+    return Response({
+        'success': True,
+        'message': f'Hello, {user.username}! You are authenticated.'},
+    )
 
-'''
-@api_view(['POST'])
-def register(request):
-    if (User.objects.filter(username=request.data["username"]).exists()):
-        return Response({"error": "Username already exists."})
-    else:
-        try:
-            user = User.objects.create_user(username=request.data["username"])
-            user.set_password(request.data["password"])
-            user.save()
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+def friendslist(request):
+    try:
+        user = request.user
+        friends = user.profile.friends
+        if (len(friends)):
             return Response({
                 "success": True,
-            })   
-        except:
+                "friends": friends,
+            })
+        else:
             return Response({
                 "success": False,
             })
-
-
-class UserLoginAPIView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request, *args, **kwargs):
-        # Use the obtain_auth_token view for token generation
-        response = obtain_auth_token(request)
-        # You can customize the response if needed
-        # For example, you might want to return additional user information
-        return Response({'token': response.data['token'], 'user_id': request.user.id})
+    except:
+        return Response({
+            "success": False,
+        })
+    
 
 @api_view(["POST"])
-def login(request):
-    django_request = request._request
-    response = obtain_auth_token(django_request)
-    return Response({'token': response.data['token'], 'user_id': django_request.user.id})
-    response = obtain_auth_token(request)
-    return Response({'token': response.data['token'], 'user_id': request.user.id})
-    if (User.objects.filter(username=request.data["username"]).exists()):
-        try:
-            user = User.objects.get(username=request.data["username"])
-            user.check_password(request.data["password"])
-            return Response({
-                "token":user.profile.token,
-                "success":True,
-                "language":user.profile.lan,
+@authentication_classes([TokenAuthentication])
+def addfriend(request):
+    try:
+        user = request.user
+        friend = User.objects.get(username=request.data["username"])
+        user.profile.friends.append(friend.username)
+        user.save()
+        return Response({"success": True})
+    except:
+        return Response({"success": False})
+    
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+def search(request):
+    try:
+        usernames_list = User.objects.values_list('username', flat=True).filter(username__icontains=request.data["searchQuery"])
+        users_data = [{"username": username} for username in usernames_list]
+        return Response({
+            "success": True,
+            "users": users_data,
             })
-        except:
-            return Response({"success": False})
-    else:
-        return Response({"error": "User not found."})
+    except:
+        return Response({"success": False})
+    
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+def get_profile(request):
+    try:
+        user = User.objects.get(username=request.data["username"])
+        return Response({
+            "success": True,
+            "username": user.username,
+            "friends_count": len(user.profile.friends),
+            "online_status": user.profile.is_online,
+            "match_count": user.profile.total_played,
+            })
+    except:
+        return Response({"success": False})
 
-
+'''
 
 def get_user_games(user):
     games = Game.objects.all(player1_token=user.profile.token).append(Game.objects.all(player2_token=user.profile.token))
@@ -102,18 +128,6 @@ def userlist(request): # responselar belirli değil, spesifikleştirilecek
     serializer = UserSerializer(users, many=True)
     return Response(serializer.data)
 
-@api_view(["POST"])
-def friendslist(request):
-    profile = Profile.objects.get(token=request.data["token"])
-    if (profile.friends != 0):
-        return Response({
-            "success": True,
-            "friends": profile.friends
-        })
-    else:
-        return Response({
-            "success": False,
-        })
 
 @api_view(["POST"])
 def addfriend(request):

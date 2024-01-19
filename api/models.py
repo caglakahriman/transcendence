@@ -8,7 +8,6 @@ import uuid
 
 class Profile(models.Model):
   user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-  token = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
   avatar = models.ImageField(upload_to='avatars/', blank=False, default="avatars/default.jpg")
   total_played = models.IntegerField(default=0)
   wins = models.IntegerField(default=0)
@@ -17,7 +16,6 @@ class Profile(models.Model):
   lan = models.CharField(max_length=2, default="tr")
   is_online = models.BooleanField(default=True)
   is_gaming = models.BooleanField(default=False) #if user accepts an invite or creates a game, this variable should be True.
-
 
 
 
