@@ -17,6 +17,14 @@ class Profile(models.Model):
   is_online = models.BooleanField(default=True)
   is_gaming = models.BooleanField(default=False) #if user accepts an invite or creates a game, this variable should be True.
 
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+  if created:
+    Profile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+  instance.profile.save()
 
 
 class Game(models.Model): #oyun game id
@@ -32,10 +40,11 @@ class Game(models.Model): #oyun game id
 class Tournament(models.Model):
   tournament_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
   date = models.DateTimeField(auto_now_add=True)
-  creator_token = models.CharField(max_length=30)
+  creator = models.CharField(max_length=30)
   final_players = JSONField(default=list)
   winner1_token = models.IntegerField(default=0)
   winner2_token = models.IntegerField(default=0)
   overall_winner_token = models.IntegerField(default=0)
   waitlist = JSONField(default=list)
+  invitelist = JSONField(default=list)
   state = models.IntegerField(default=0) #0: not started, 1: started, 2: finished

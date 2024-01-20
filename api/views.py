@@ -14,33 +14,46 @@ from django.shortcuts import get_object_or_404
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
-@authentication_classes([TokenAuthentication])
 def login_user(request):
+    print(request.data["username"])
     try:
-        user = User.objects.get(username=request.data["username"])
-        if user.check_password(request.data["password"]):
-            token = Token.objects.get_or_create(user=user)
-            return Response({
-                'success': True,
-                'token': str(token),
-            })
-        else:
-            return Response({"error": "Invalid password."}, status=401)
+        if (User.objects.filter(username=request.data["username"]).exists() == True):
+            user = User.objects.get(username=request.data["username"])
+            if user.check_password(request.data["password"]):
+                token = Token.objects.get_or_create(user=user)
+                return Response({
+                    'success': True,
+                    'token': str(token),
+                })
+            else:
+                return Response({"error": "Invalid password."}, status=401)
     except User.DoesNotExist:
         return Response({"error": "User not found."}, status=404)
+
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+def logout_user(request):
+    try:
+        token = Token.objects.get(user=request.user)
+        token.delete()
+        request.user.profile.is_online = False
+        request.user.save()
+
+        return Response({'success': True})
+    except Token.DoesNotExist:
+        return Response({'success': False, "error": "Token not found."}, status=404)
+    except Exception as e:
+        return Response({'success': False, "error": f"Internal server error: {str(e)}"}, status=500)
+
 
 @api_view(['POST'])
 def register_user(request):
     serializer = UserSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
-        Profile.objects.create(user=user)
-        return Response(
-            {
-                'success': True,
-            }
-        )
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'success': True,})
+    return Response({'success': False})
 
 
 @api_view(['GET'])
@@ -50,28 +63,7 @@ def authenticated_test(request):
     user = request.user
     return Response({
         'success': True,
-        'message': f'Hello, {user.username}! You are authenticated.'},
-    )
-
-@api_view(["GET"])
-@authentication_classes([TokenAuthentication])
-def friendslist(request):
-    try:
-        user = request.user
-        friends = user.profile.friends
-        if (len(friends)):
-            return Response({
-                "success": True,
-                "friends": friends,
-            })
-        else:
-            return Response({
-                "success": False,
-            })
-    except:
-        return Response({
-            "success": False,
-        })
+    })
     
 
 @api_view(["POST"])
@@ -81,6 +73,19 @@ def addfriend(request):
         user = request.user
         friend = User.objects.get(username=request.data["username"])
         user.profile.friends.append(friend.username)
+        friend.profile.friends.append(user.username)
+        user.save()
+        friend.save()
+        return Response({"success": True})
+    except:
+        return Response({"success": False})
+    
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+def removefriend(request):
+    try:
+        user = request.user
+        user.profile.friends.remove(request.data["username"])
         user.save()
         return Response({"success": True})
     except:
@@ -91,8 +96,25 @@ def addfriend(request):
 @authentication_classes([TokenAuthentication])
 def search(request):
     try:
+        if (request.data["searchQuery"] == ""):
+            return Response({"success": False})
+        
         usernames_list = User.objects.values_list('username', flat=True).filter(username__icontains=request.data["searchQuery"])
-        users_data = [{"username": username} for username in usernames_list]
+        users_data = list()
+
+        for username in usernames_list:
+            if username != request.user.username:
+                try:
+                    user = User.objects.get(username=username)
+                    profile = user.profile
+                    users_data.append({
+                        "username": username,
+                        "is_online": profile.is_online,
+                    })
+                except User.DoesNotExist:
+                    # Handle the case where the user object for a username is not found
+                    pass
+        #users_data = [{"username": username} for username in usernames_list if username != request.user.username]
         return Response({
             "success": True,
             "users": users_data,
@@ -100,16 +122,108 @@ def search(request):
     except:
         return Response({"success": False})
     
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+def friendslist(request):
+    try:
+        friends_list = list()
+        friends = request.user.profile.friends
+        if (len(friends) == 0):
+            return Response({'success': False})
+        else:
+            for friend_name in friends:
+                friend = User.objects.get(username=friend_name)
+                if (friend.profile.is_online == True):
+                    is_online = True
+                else:
+                    is_online = False
+                friend.save()
+                friends_list.append({"username": friend_name, "is_online": is_online})
+            return Response({
+                'success': True,
+                'friends': friends_list,
+            })
+    except:
+        return Response({"success": False})
+
 @api_view(["POST"])
 @authentication_classes([TokenAuthentication])
+def create_tournament(request):
+    try:
+        tournament = Tournament.objects.create(creator = request.user.username)
+        tournament.waitlist.append(request.user.username)
+        tournament.save()
+        request.user.profile.is_gaming = True
+        return Response({"success": True, "tournament_id": tournament.tournament_id, "tournament_state": tournament.state}) 
+    except:
+        return Response({"success": False})
+    
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+def join_tournament(request):
+    try:
+        if (Tournament.objects.filter(tournament_id = request.data["tournament_id"]).exists() == True
+            and Tournament.objects.get(tournament_id = request.data["tournament_id"]).state == 0):
+
+            tournament = Tournament.objects.get(tournament_id = request.data["tournament_id"])
+            tournament.waitlist.append(request.user.username)
+            
+            if request.user.username in tournament.invitelist:
+                tournament.invitelist.remove(request.user.username)
+
+            if (tournament.waitlist == 4):
+                tournament.state = 1
+            tournament.save()
+
+            request.user.profile.is_gaming = True
+            return Response({
+                "success": True, 
+                "tournament_id": tournament.tournament_id, 
+                "tournament_state": tournament.state
+            })
+        else:
+            return Response({"success": False})
+    except:
+        return Response({"success": False})
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+def invite_tournament(request):
+    try:
+        if (User.objects.filter(username=request.data["username"]).exists() == True
+            and User.objects.get(username=request.data["username"]).profile.is_online == True
+            and User.objects.get(username=request.data["username"]).profile.is_gaming == False
+            and Tournament.objects.filter(tournament_id = request.data["tournament_id"]).exists() == True
+            and Tournament.objects.get(tournament_id = request.data["tournament_id"]).state == 0):
+
+            tournament = Tournament.objects.get(tournament_id = request.data["tournament_id"])
+            tournament.invitelist.append(request.data["username"])
+            
+            return Response({"success": True})
+        else:
+            return Response({"success": False})
+    except:
+        return Response({"success": False})
+
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def get_profile(request):
     try:
-        user = User.objects.get(username=request.data["username"])
+        is_friend = False
+        if (User.objects.filter(username=request.data["username"]).exists() == True):
+            user = User.objects.get(username=request.data["username"])
+        if (user.username in request.user.profile.friends):
+            is_friend = True
+
+        print("ADDFRIEND" + str(user.profile.friends) + str(request.user.profile.friends))
         return Response({
             "success": True,
+            "is_friend": is_friend,
             "username": user.username,
             "friends_count": len(user.profile.friends),
-            "online_status": user.profile.is_online,
+            "is_online": user.profile.is_online,
             "match_count": user.profile.total_played,
             })
     except:
@@ -121,33 +235,6 @@ def get_user_games(user):
     games = Game.objects.all(player1_token=user.profile.token).append(Game.objects.all(player2_token=user.profile.token))
     return games
 
-
-@api_view(["GET"]) #token password olarak döndü?
-def userlist(request): # responselar belirli değil, spesifikleştirilecek
-    users = User.objects.all()
-    serializer = UserSerializer(users, many=True)
-    return Response(serializer.data)
-
-
-@api_view(["POST"])
-def addfriend(request):
-    try:
-        profile = Profile.objects.get(token=request.data["token"])
-        profile.friends.append(request.data["friend"])
-        profile.save()
-        return Response({"success": True})
-    except:
-        return Response({"success": False})
-
-@api_view(["POST"])
-def removefriend(request):
-    try:
-        profile = Profile.objects.get(token=request.data["token"])
-        profile.friends.remove(request.data["friend"])
-        profile.save()
-        return Response({"success": True})
-    except:
-        return Response({"success": False})
 
 @api_view(["POST"])
 def updatename(request):

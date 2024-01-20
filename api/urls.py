@@ -12,6 +12,14 @@ urlpatterns = [
 
 
   path('friendslist/', friendslist, name='friendslist'),
+  path('addfriend/', addfriend, name='addfriend'),
+  path('removefriend/', removefriend, name='removefriend'),
+
   path('search/', search, name='search'),
   path('getprofile/', get_profile, name='getprofile'),
+
+  path('createTournament/', create_tournament, name='createTournament'),
+  path('inviteTournament/', invite_tournament, name='inviteTournament'),
+  path('joinTournament/', join_tournament, name='joinTournament'),
+
 ]
