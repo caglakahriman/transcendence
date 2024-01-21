@@ -19,7 +19,7 @@ class Profile(models.Model):
 
 class Avatar(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
+    avatar = models.ImageField(upload_to='avatars/')
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):

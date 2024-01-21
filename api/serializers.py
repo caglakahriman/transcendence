@@ -25,7 +25,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 class AvatarSerializer(serializers.ModelSerializer):
     class Meta:
         model = Avatar
-        fields = ['avatar']
+        fields = ['user','avatar']
     
 class GameSerializer(serializers.ModelSerializer):
     class Meta:

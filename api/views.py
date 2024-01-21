@@ -12,6 +12,7 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, login
 from django.shortcuts import get_object_or_404
+import os
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -282,23 +283,14 @@ def get_myprofile(request):
         return Response({
             "success": True,
             "username": user.username,
-            "avatar": user.avatar.url,
-            "friends_count": len(user.profile.friends),
             "match_count": len(user.profile.match_history),
+            "match_history": user.profile.match_history,
+            "friends_count": len(user.profile.friends),
+            #"avatar": user.avatar,
         })
     except:
         return Response({"success": False})
 
-
-def get_avatar_binary(request):
-    user = request.user
-    avatar = user.profile.avatar  # varsayılan olarak kullanıcının avatarını alın
-    if avatar:
-        # Eğer avatar varsa, binary verileri alın ve HTTP response olarak döndürün
-        return HttpResponse(avatar.read(), content_type='image/jpeg')  # veya content_type='image/png' vb. kullanabilirsiniz
-    else:
-        # Eğer avatar yoksa, uygun bir hata durumu döndürün
-        return HttpResponse(status=404)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -312,8 +304,6 @@ def update_avatar(request):
             user_avatar = Avatar.objects.get(user=user)
             user_avatar.avatar = avatar
             user_avatar.save()
-            print(user_avatar.avatar.name)
-            print(user_avatar.avatar.url)
 
             return JsonResponse({
                 'success': True,
@@ -369,10 +359,33 @@ def matching(request):
     except:
         return Response({"success": False})
 
-                
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def head_tail(request):
+    try:
+        type_1_game_list = Game.objects.filter(type=1)
 
-                    
-            
+        if (len(type_1_game_list)== 1):
+            if (request.user.username  not in type_1_game_list.waitlist):
+                type_1_game_list.waitlist.append(request.user.username)
+                type_1_game_list.save()
+                if (len(type_1_game_list.waitlist) == 2):
+                    return Response({"success": True, "tournament_id": type_1_game_list.game_id, "game_state": type_1_game_list.state, "match": True})
+                else:
+                    return Response({"success": False})
+            else:
+                if (len(type_1_game_list.waitlist) == 2 and type_1_game_list.waitlist in request.user.username):
+                    return Response({"success": True, "tournament_id": type_1_game_list.game_id, "game_state": type_1_game_list.state, "match": True})
+                else:
+                    return Response({"success": False})
+        elif (len(type_1_game_list) == 0):
+            new_game = Game.objects.create(player1 = request.user.username)
+            new_game.waitlist.append(request.user.username)
+            new_game.save()
+            return Response({"success": False, "tournament_id": new_game.game_id, "game_state": new_game.state, "match": False})
+    except:
+        return Response({"Error": False})       
     
 '''
         if (game and len(game.waitlist) == 2):

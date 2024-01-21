@@ -32,6 +32,7 @@ urlpatterns = [
 
 
   path('matching/', matching, name='matching'),
+  path('headtail/', head_tail, name='headtail'),
 ]
 
 
