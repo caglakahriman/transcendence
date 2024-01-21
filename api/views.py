@@ -1,10 +1,11 @@
-from .serializers import UserSerializer, GameSerializer, ProfileSerializer, TournamentSerializer
-from .models import Game, Profile, Tournament, User
+from .serializers import UserSerializer, GameSerializer, ProfileSerializer, TournamentSerializer, AvatarSerializer
+from .models import Game, Profile, Tournament, User, Avatar
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework import status
+from django.http import JsonResponse, HttpResponse
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authentication import TokenAuthentication
@@ -252,6 +253,7 @@ def tournament_table(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def get_profile(request):
+    print(request.data["username"])
     try:
         is_friend = False
         if (User.objects.filter(username=request.data["username"]).exists() == True):
@@ -259,10 +261,10 @@ def get_profile(request):
         if (user.username in request.user.profile.friends):
             is_friend = True
 
-        print("ADDFRIEND" + str(user.profile.friends) + str(request.user.profile.friends))
         return Response({
             "success": True,
             "is_friend": is_friend,
+            "avatar": user.avatar.url,
             "username": user.username,
             "friends_count": len(user.profile.friends),
             "is_online": user.profile.is_online,
@@ -280,11 +282,60 @@ def get_myprofile(request):
         return Response({
             "success": True,
             "username": user.username,
+            "avatar": user.avatar.url,
             "friends_count": len(user.profile.friends),
             "match_count": len(user.profile.match_history),
-            })
+        })
     except:
         return Response({"success": False})
+
+
+def get_avatar_binary(request):
+    user = request.user
+    avatar = user.profile.avatar  # varsayılan olarak kullanıcının avatarını alın
+    if avatar:
+        # Eğer avatar varsa, binary verileri alın ve HTTP response olarak döndürün
+        return HttpResponse(avatar.read(), content_type='image/jpeg')  # veya content_type='image/png' vb. kullanabilirsiniz
+    else:
+        # Eğer avatar yoksa, uygun bir hata durumu döndürün
+        return HttpResponse(status=404)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_avatar(request):
+    user = request.user
+
+    if 'photo' in request.FILES:
+        avatar = request.FILES['photo']
+
+        if Avatar.objects.filter(user=user).exists():
+            user_avatar = Avatar.objects.get(user=user)
+            user_avatar.avatar = avatar
+            user_avatar.save()
+            print(user_avatar.avatar.name)
+            print(user_avatar.avatar.url)
+
+            return JsonResponse({
+                'success': True,
+                'avatar_name': user_avatar.avatar.name,  # avatars/1078764_lNpQvRr.png
+                'avatar_path': user_avatar.avatar.url, # /media/avatars/1078764_lNpQvRr.png
+            })
+        return JsonResponse({'success': False, 'error': 'Avatar not found'})
+    else:
+        return JsonResponse({'success': False, 'error': 'Photo not found in request'})
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_avatar(request):
+    user = request.user
+    avatar = get_object_or_404(Avatar, user=user)
+    
+    return JsonResponse({
+        'success': True,
+        'avatar_name': avatar.avatar.name,  # Provide the filename
+        'avatar_path': avatar.avatar.url,
+    })
 
 
 @api_view(["GET"])

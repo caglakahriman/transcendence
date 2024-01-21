@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 
 import environ
@@ -167,3 +168,7 @@ REST_FRAMEWORK = {
 '''
 
 APPEND_SLASH = True
+FILE_UPLOAD_TIMEOUT = 120
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

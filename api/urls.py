@@ -3,6 +3,8 @@ from api.views import *
 from django.urls import path, include
 from .views import *
 from rest_framework.authtoken.views import obtain_auth_token
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
   path('register/', register_user, name='register'),
@@ -19,6 +21,8 @@ urlpatterns = [
   path('search/', search, name='search'),
   path('getprofile/', get_profile, name='getprofile'),
   path('getmyprofile/', get_myprofile, name='getmyprofile'),
+  path('updateavatar/', update_avatar, name='updateavatar'),
+  path('getavatar/', get_avatar, name='getavatar'),
 
   path('createTournament/', create_tournament, name='createTournament'),
   path('inviteTournament/', invite_tournament, name='inviteTournament'),
@@ -29,3 +33,7 @@ urlpatterns = [
 
   path('matching/', matching, name='matching'),
 ]
+
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

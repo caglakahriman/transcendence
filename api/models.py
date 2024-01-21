@@ -8,7 +8,6 @@ import uuid
 
 class Profile(models.Model):
   user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-  avatar = models.ImageField(upload_to='avatars/', blank=False, default="avatars/default.jpg")
   match_history = models.JSONField(default=dict)
   wins = models.IntegerField(default=0)
   losses = models.IntegerField(default=0)
@@ -18,14 +17,20 @@ class Profile(models.Model):
   ready_to_play = models.BooleanField(default=False)
   is_gaming = models.BooleanField(default=False) #if user accepts an invite or creates a game, this variable should be True.
 
+class Avatar(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
   if created:
     Profile.objects.create(user=instance)
+    Avatar.objects.create(user=instance)
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
   instance.profile.save()
+  instance.avatar.save()
 
 
 class Game(models.Model): #oyun game id
