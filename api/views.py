@@ -15,7 +15,6 @@ from django.shortcuts import get_object_or_404
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def login_user(request):
-    print(request.data["username"])
     try:
         if (User.objects.filter(username=request.data["username"]).exists() == True):
             user = User.objects.get(username=request.data["username"])
@@ -31,8 +30,9 @@ def login_user(request):
         return Response({"error": "User not found."}, status=404)
 
 
-@api_view(["POST"])
+@api_view(["GET"])
 @authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def logout_user(request):
     try:
         token = Token.objects.get(user=request.user)
@@ -162,29 +162,25 @@ def create_tournament(request):
 @authentication_classes([TokenAuthentication])
 def join_tournament(request):
     try:
-        if (Tournament.objects.filter(tournament_id = request.data["tournament_id"]).exists() == True
-            and Tournament.objects.get(tournament_id = request.data["tournament_id"]).state == 0):
+        if (Tournament.objects.filter(tournament_id = request.data["tournament_id"]).exists() == True):
 
             tournament = Tournament.objects.get(tournament_id = request.data["tournament_id"])
             tournament.waitlist.append(request.user.username)
-            
-            if request.user.username in tournament.invitelist:
-                tournament.invitelist.remove(request.user.username)
-
-            if (tournament.waitlist == 4):
-                tournament.state = 1
+            tournament.invitelist.remove(request.user.username)
             tournament.save()
 
-            request.user.profile.is_gaming = True
-            return Response({
-                "success": True, 
-                "tournament_id": tournament.tournament_id, 
-                "tournament_state": tournament.state
-            })
+            if (request.user.username in tournament.waitlist):
+                request.user.profile.is_gaming = True
+                return Response({"success": True,})
+            else:
+                print("burası")
+                return Response({"success": False,})
+
         else:
             return Response({"success": False})
-    except:
-        return Response({"success": False})
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return Response({"success": False, "error_message": str(e)})
 
 @api_view(["POST"])
 @authentication_classes([TokenAuthentication])
@@ -193,18 +189,64 @@ def invite_tournament(request):
         if (User.objects.filter(username=request.data["username"]).exists() == True
             and User.objects.get(username=request.data["username"]).profile.is_online == True
             and User.objects.get(username=request.data["username"]).profile.is_gaming == False
-            and Tournament.objects.filter(tournament_id = request.data["tournament_id"]).exists() == True
-            and Tournament.objects.get(tournament_id = request.data["tournament_id"]).state == 0):
+            and Tournament.objects.filter(tournament_id = request.data["tournament_id"]).exists() == True): #check state?
 
             tournament = Tournament.objects.get(tournament_id = request.data["tournament_id"])
             tournament.invitelist.append(request.data["username"])
+            tournament.save()
+
+            if (len(tournament.invitelist) == 3):
+                return Response({"success": True, "user_count": 3})
             
-            return Response({"success": True})
+            return Response({"success": True, "user_count": len(tournament.invitelist), "tournament_id": tournament.tournament_id})
         else:
-            return Response({"success": False})
+            return Response({"success": False, 'new': True})
     except:
         return Response({"success": False})
 
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def start_tournament(request):
+    try:
+        user = request.user
+        all_tournaments = Tournament.objects.all()
+        if (all_tournaments):
+            for tournament in all_tournaments:
+                if (tournament and tournament.invitelist and user.username in tournament.invitelist and user not in tournament.waitlist):
+                    return Response({"success": True, "tournament_id": tournament.tournament_id, "tournament_state": tournament.state})
+                else:
+                    return Response({"success": False})
+      
+        else:
+            return Response({'success': False})
+    except:
+        return Response({"success": False})
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def tournament_table(request):
+    try:
+        tournament = Tournament.objects.get(tournament_id=request.data["tournament_id"])
+        if request.user.username in tournament.invitelist:
+           tournament.invitelist.remove(request.user.username)
+           tournament.waitlist.append(request.user.username)
+           tournament.save()
+
+        formatted_users = [{"username": user} for user in tournament.waitlist]
+
+        return Response({
+            "success": True,
+            "tournament_id": tournament.tournament_id,
+            "tournament_state": tournament.state,
+            "users": formatted_users,
+            "users_length": len(formatted_users),
+        })
+    except Tournament.DoesNotExist:
+        return Response({"success": False, "error": "Tournament not found"})
+    except Exception as e:
+        return Response({"success": False, "error": str(e)})
 
 @api_view(["POST"])
 @authentication_classes([TokenAuthentication])
@@ -224,10 +266,85 @@ def get_profile(request):
             "username": user.username,
             "friends_count": len(user.profile.friends),
             "is_online": user.profile.is_online,
-            "match_count": user.profile.total_played,
+            "match_count": len(user.profile.match_history),
             })
     except:
         return Response({"success": False})
+    
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_myprofile(request):
+    try:
+        user = request.user
+        return Response({
+            "success": True,
+            "username": user.username,
+            "friends_count": len(user.profile.friends),
+            "match_count": len(user.profile.match_history),
+            })
+    except:
+        return Response({"success": False})
+
+
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+def matching(request):
+    try:
+        user = request.user
+        all_games = Game.objects.all()
+
+        users_games = None
+        for game in all_games:
+            if user.username in game.waitlist and game.state == 0:
+                users_games = game
+                break
+        if users_games is not None:
+            if len(users_games.waitlist) < 2:
+                return Response({"success": True, "game_id": users_games.game_id, "game_state": users_games.state, "match": False})
+            elif len(users_games.waitlist) == 2:
+                return Response({"success": True, "game_id": users_games.game_id, "game_state": users_games.state, "match": True})
+        else:
+            for game in all_games:
+                if len(game.waitlist) < 2 :
+                    game.waitlist.append(user.username)
+                    game.player2 = user.username
+                    game.save()
+                    return Response({"success": True, "game_id": game.game_id, "game_state": game.state, "match": False})
+            new_game = Game.objects.create(player1 = user.username)
+            new_game.waitlist.append(user.username)
+            new_game.save()
+            return Response({"success": True, "game_id": new_game.game_id, "game_state": new_game.state, "match": False})
+    except:
+        return Response({"success": False})
+
+                
+
+                    
+            
+    
+'''
+        if (game and len(game.waitlist) == 2):
+            return Response({"success": True, "player": 1, "game_id": game.game_id, "game_pass": 4242, "player_pass": 2121, "game_state": game.state, "match": True})
+        if game and len(game.waitlist) < 2:
+            if game.player1 == user.username:
+                return Response({"success": True, "game_id": new_game.game_id, "game_pass": 4242, "player_pass": 2121, "game_state": new_game.state, "match": False})
+            user.profile.is_gaming = True
+            user.profile.ready_to_play = True
+            if user.username not in game.waitlist:
+                game.waitlist.append(user.username)
+                game.player2 = user.username
+                game.save()
+                return Response({"success": True, "player": 1, "game_id": game.game_id, "game_pass": 4242, "player_pass": 2121, "game_state": game.state, "match": True})
+            else:
+                return Response({'success':False})
+        elif game and user.username not in game.waitlist:
+            new_game = Game.objects.create(player1 = user.username)
+            new_game.waitlist.append(user.username)
+            return Response({"success": True, "game_id": new_game.game_id, "game_pass": 4242, "player_pass": 2121, "game_state": new_game.state, "match": False})
+        else:
+            return Response({"success": False})'''
+    
 
 '''
 
