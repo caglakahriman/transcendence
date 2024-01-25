@@ -21,8 +21,9 @@ urlpatterns = [
   path('search/', search, name='search'),
   path('getprofile/', get_profile, name='getprofile'),
   path('getmyprofile/', get_myprofile, name='getmyprofile'),
-  path('updateavatar/', update_avatar, name='updateavatar'),
+  path('update_avatar/', update_avatar, name='updateavatar'),
   path('getavatar/', get_avatar, name='getavatar'),
+  path('update_profile/', update_profile, name='updateprofile'),
 
   path('createTournament/', create_tournament, name='createTournament'),
   path('inviteTournament/', invite_tournament, name='inviteTournament'),
@@ -32,6 +33,11 @@ urlpatterns = [
 
 
   path('matching/', matching, name='matching'),
+
+
+  path('head-tail/', head_tail, name='head-tail'),
+  path('head-and-tail-race/', head_tail_race, name='head_tail_race'),
+  path('check-head-tail/', check_head_tail, name='check_head_tail'),
 ]
 
 

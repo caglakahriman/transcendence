@@ -12,6 +12,11 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, login
 from django.shortcuts import get_object_or_404
+import random
+from urllib.parse import urljoin
+from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.auth.hashers import make_password
+import requests
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -21,6 +26,8 @@ def login_user(request):
             user = User.objects.get(username=request.data["username"])
             if user.check_password(request.data["password"]):
                 token = Token.objects.get_or_create(user=user)
+                user.profile.is_online = True
+                user.save()
                 return Response({
                     'success': True,
                     'token': str(token),
@@ -253,22 +260,25 @@ def tournament_table(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def get_profile(request):
-    print(request.data["username"])
     try:
         is_friend = False
         if (User.objects.filter(username=request.data["username"]).exists() == True):
             user = User.objects.get(username=request.data["username"])
         if (user.username in request.user.profile.friends):
             is_friend = True
+        
+        backend_url = request.build_absolute_uri('/')
+        full_avatar_url = urljoin(backend_url, user.avatar.avatar.url)
 
         return Response({
             "success": True,
             "is_friend": is_friend,
-            "avatar": user.avatar.url,
             "username": user.username,
-            "friends_count": len(user.profile.friends),
+            "avatar": full_avatar_url,
             "is_online": user.profile.is_online,
             "match_count": len(user.profile.match_history),
+            "friends_count": len(user.profile.friends),
+            "matches_win": user.profile.wins,
             })
     except:
         return Response({"success": False})
@@ -279,12 +289,17 @@ def get_profile(request):
 def get_myprofile(request):
     try:
         user = request.user
+
+        backend_url = request.build_absolute_uri('/')
+        full_avatar_url = urljoin(backend_url, user.avatar.avatar.url)
+
         return Response({
             "success": True,
             "username": user.username,
-            "avatar": user.avatar.url,
+            "avatar": full_avatar_url,
             "friends_count": len(user.profile.friends),
             "match_count": len(user.profile.match_history),
+            "matches_win": user.profile.wins,
         })
     except:
         return Response({"success": False})
@@ -300,30 +315,55 @@ def get_avatar_binary(request):
         # Eğer avatar yoksa, uygun bir hata durumu döndürün
         return HttpResponse(status=404)
 
-@api_view(['POST'])
+@api_view(['PUT'])
+@authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def update_avatar(request):
     user = request.user
 
-    if 'photo' in request.FILES:
-        avatar = request.FILES['photo']
+    try:
+        avatar = Avatar.objects.get(user=user)
+    except ObjectDoesNotExist:
+        avatar = Avatar.objects.create(user=user)
 
-        if Avatar.objects.filter(user=user).exists():
-            user_avatar = Avatar.objects.get(user=user)
-            user_avatar.avatar = avatar
-            user_avatar.save()
-            print(user_avatar.avatar.name)
-            print(user_avatar.avatar.url)
-
-            return JsonResponse({
-                'success': True,
-                'avatar_name': user_avatar.avatar.name,  # avatars/1078764_lNpQvRr.png
-                'avatar_path': user_avatar.avatar.url, # /media/avatars/1078764_lNpQvRr.png
-            })
-        return JsonResponse({'success': False, 'error': 'Avatar not found'})
+    uploaded_file = request.FILES.get('photo')
+    if uploaded_file:
+        avatar.avatar = uploaded_file
+        avatar.save()
+        return Response({"success": True,})
     else:
-        return JsonResponse({'success': False, 'error': 'Photo not found in request'})
+        return Response({"success": False})
 
+@api_view(['PUT'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def update_profile(request):
+    try:
+        user = request.user
+        profile = user.profile
+
+        print("username", request.data["username"])
+        updated_data = request.data
+
+        if 'password' in updated_data:
+            user.password = make_password(updated_data['password'])
+
+        if User.objects.exclude(pk=user.pk).filter(username=request.data["username"]).exists():
+            return Response({"success": False, "error": "Username is already in use by another user."})
+
+
+        # Diğer güncelleme verilerini profilde güncelle
+        profile.user.username = updated_data.get('username', profile.user.username)
+        profile.lan = updated_data.get('language', profile.lan)
+
+        # Profili kaydet
+        user.save()
+        profile.save()
+
+        return Response({"success": True, "message": "Profile updated successfully."})
+    except Exception as e:
+        return Response({"success": False, "error": str(e)})
+    
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
@@ -346,34 +386,246 @@ def matching(request):
         all_games = Game.objects.all()
 
         users_games = None
+        print('user.username: ', user.username)
         for game in all_games:
             if user.username in game.waitlist and game.state == 0:
                 users_games = game
+                print('hey')
                 break
         if users_games is not None:
+            print('true')
             if len(users_games.waitlist) < 2:
-                return Response({"success": True, "game_id": users_games.game_id, "game_state": users_games.state, "match": False})
+                return Response({"success": True, "playerpass": user.profile.id, "game_id": users_games.game_id, "game_state": users_games.state, "match": False})
             elif len(users_games.waitlist) == 2:
-                return Response({"success": True, "game_id": users_games.game_id, "game_state": users_games.state, "match": True})
+                player_1 = users_games.waitlist[0]
+                player_2 = users_games.waitlist[1]
+                user_player1 = User.objects.get(username=player_1)
+                user_player2 = User.objects.get(username=player_2)
+
+                print('users_games.player1: ', users_games.player1)
+                print('users_games.player1 id : ', user.profile.id)
+                mydata = {
+                    'game_id': str(users_games.game_id),
+                    'password': '4242',
+                    'password_p1': user_player1.id,
+                    'password_p2': user_player2.id,
+                    'private': 1,
+                }
+                print('mydata:', mydata)
+                try:
+                    game_response = requests.post('http://apipong.ftpong.duckdns.org/api/new_game/', data=mydata)
+                    print('game_response: ', game_response.text)
+                except requests.exceptions.RequestException as e:
+                    print('Hata:', e)
+
+                if game_response.ok:
+                    return Response({
+                        "success": True,
+                        "game_pass": '4242',
+                        "player": (int(user.profile.id != users_games.player1.profile.id) + 1),
+                        "player_pass": user.profile.id,
+                        "game_id son": str(users_games.game_id),
+                        "game_state": users_games.state,
+                        "match": True,
+                    })
+                else:
+                    return Response({"success": False})
+                
+                    
         else:
             for game in all_games:
                 if len(game.waitlist) < 2 :
                     game.waitlist.append(user.username)
                     game.player2 = user.username
                     game.save()
-                    return Response({"success": True, "game_id": game.game_id, "game_state": game.state, "match": False})
+                    return Response({"success": True, "playerpass": user.profile.id, "game_id": game.game_id, "game_state": game.state, "match": False})
             new_game = Game.objects.create(player1 = user.username)
             new_game.waitlist.append(user.username)
             new_game.save()
-            return Response({"success": True, "game_id": new_game.game_id, "game_state": new_game.state, "match": False})
+            return Response({"success": True, "playerpass": user.profile.id, "game_id": new_game.game_id, "game_state": new_game.state, "match": False})
     except:
+        print('false')
         return Response({"success": False})
 
                 
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def head_tail(request):
+    try:
+        type_1_game_list = Game.objects.filter(type=1)
+        if type_1_game_list:
+            for type_1_game in type_1_game_list:
+                if (
+                    type_1_game.player1 == request.user.username
+                    and type_1_game.player2 != '' and type_1_game.player2 != None
+                    and type_1_game.state == 0
+                ):
+                    type_1_game.state = 1
+                    type_1_game.save()
+                    return Response({"success": True, "game_id": type_1_game.game_id,})
+                elif (type_1_game.player1 == request.user.username and (type_1_game.player2 is None or type_1_game.player2 == '')):
+                    return Response({"success": False})
+                elif (
+                    type_1_game.player1 != request.user.username
+                    and (type_1_game.player2 is None or type_1_game.player2 == '')
+                    and type_1_game.state == 0
+                ):
+                    type_1_game.player2 = request.user.username
+                    type_1_game.save()
+                    return Response({"success": True, "game_id": type_1_game.game_id,})
+            new_game = Game.objects.create(player1=request.user.username, type=1)
+            new_game.save()
+            return Response({"success": False})
+        else:
+            new_game = Game.objects.create(player1=request.user.username, type=1)
+            new_game.save()
+            return Response({"success": False})
+    except Game.DoesNotExist:
+        return Response({"success": False})
 
-                    
+
+""" """
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def check_head_tail(request):
+    try:
+        print("check_head_tail")
+        game = Game.objects.get(game_id=request.data["game_id"])
+        user = request.user
+        if (game.state == 4 or game.state == 5):
+            print("1")
+            print("game.player1: ", game.player1)
+            print("game.player2: ", game.player2)
+            if (game.player1 == request.user.username and game.player2_score != '' and game.player2_score != None):
+                print("Player1_score: ", game.player1_score)
+                print("Player2_score: ", game.player2_score)
+                if (game.player1_score >= game.player2_score):
+                    print("2")
+                    print("player 1 in scoru büyük player 2 ninkinden aşağıda")
+                    print("Player1_score: ", game.player1_score)
+                    print("Player2_score: ", game.player2_score)
+                    print("ve player 1 kazanır")
+                    game.winner = user.profile.id
+                    game.save()
+                    print("1save")
+                    return Response({"success": True, "winner": 1})
+                else:
+                    print("3")
+                    return Response({"success": True,  "lose": 1})
+            elif (game.player2 == request.user.username and game.player1_score != '' and game.player1_score != None):
+                print("Player1_score: ", game.player1_score)
+                print("Player2_score: ", game.player2_score)
+                if (game.player2_score >= game.player1_score):
+                    print("4")
+                    print("player 2 in scoru büyük player 1 ninkinden aşağıda")
+                    print("Player1_score: ", game.player1_score)
+                    print("Player2_score: ", game.player2_score)
+                    print("ve player 2 kazanır")
+                    game.winner = user.profile.id
+                    game.save()
+                    print("2save")
+                    return Response({"success": True, "winner": 1})
+                else:
+                    print("5")
+                    return Response({"success": True, "lose": 1})
+            else:
+                print("6")
+                print("game.player1 again : ", game.player1)
+                print("game.player2 again: ", game.player2)
+                return Response({"success": True, "again": 1})
+        else:
+            print("7")
+            return Response({"success": False})
+    except:
+        return Response({"success": False})
+
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def head_tail_race(request):
+    try:
+        random_value = random.randint(4, 5)
+        game = Game.objects.get(game_id=request.data["game_id"])
+        if (game.state == 1):
+            game.state = random_value
+            game.save()
+        headclickcount = request.data["headClickCount"]
+        tailclickcount = request.data["tailClickCount"]
+        if (game.state == 4 and game.player1 == request.user.username):#head_score
+            game.player1_score = headclickcount
+            game.save()
+            print("head_score player 1", game.player1_score)
+            print("player 2  id : ", game.player2)
+            return Response({"success": True, "notset": 2})
+        elif (game.state == 5 and  game.player1 == request.user.username): #tail_score
+            game.player1_score = tailclickcount
+            game.save()
+            print("tail_score player 1", game.player1_score)
+            print("player 2  id : ", game.player1)
+            return Response({"success": True, "notset": 2})
+        elif (game.state == 4 and game.player2 == request.user.username):
+            game.player2_score = headclickcount
+            game.save()
+            print("head_score player 2", game.player2_score)
+            print("player 2  id : ", game.player2)
+            return Response({"success": True, "notset": 2})
+        elif (game.state == 5 and game.player2 == request.user.username):
+            game.player2_score = tailclickcount
+            game.save()
+            print("tail_score player 2", game.player2_score)
+            print("player 2  id : ", game.player2)
+            return Response({"success": True, "notset": 2})
+    except:
+        return Response({"success": False})
+
             
     
+        """ if (random_value == 0): #head
+           if (headclickcount >= tailclickcount and game.player1 == request.user.username):
+               game.player1_score == headclickcount
+               game.save()
+               if (game.player2_score != '' and game.player2_score != None):
+                   if (game.player1_score > game.player2_score):
+                       game.state = 2
+                       game.save()
+                       return Response({"success": True, "winner": game.player1})
+           if (headclickcount >= tailclickcount and game.player2 == request.user.username):
+                game.player2_score == headclickcount
+                game.save()
+                if (game.player1_score != '' and game.player1_score != None):
+                    if (game.player2_score > game.player1_score):
+                        game.state = 2
+                        game.save()
+                        return Response({"success": True, "winner": game.player2})
+           else:
+               return Response ({"success": False})
+        else:                   #tail
+            if (tailclickcount >= headclickcount and game.player1 == request.user.username):
+                game.player1_score == tailclickcount
+                game.save()
+                if (game.player2_score != '' and game.player2_score != None):
+                    if (game.player1_score > game.player2_score):
+                        game.state = 2
+                        game.save()
+                        return Response({"success": True, "winner": game.player1})
+                    else:
+                        return Response({"success": False})
+                else:
+                    return Response({"success": False})
+            if (tailclickcount >= headclickcount and game.player2 == request.user.username):
+                game.player2_score == tailclickcount
+                game.save()
+                if (game.player1_score != '' and game.player1_score != None):
+                    if (game.player2_score > game.player1_score):
+                        game.state = 2
+                        game.save()
+                        return Response({"success": True, "winner": game.player2})
+            else:
+                return Response({"success": False, "error": "Something went wrong."}) """
 '''
         if (game and len(game.waitlist) == 2):
             return Response({"success": True, "player": 1, "game_id": game.game_id, "game_pass": 4242, "player_pass": 2121, "game_state": game.state, "match": True})

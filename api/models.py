@@ -29,8 +29,23 @@ def create_user_profile(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
-  instance.profile.save()
-  instance.avatar.save()
+    instance.profile.save()
+    
+    # Varsayılan avatar dosyasının yolu
+    default_avatar_path = 'avatars/default_avatar.jpg'
+    # Eğer Avatar nesnesi zaten mevcutsa sadece dosya yolu güncellenir
+    if instance.avatar:
+        # Dosya yolunu varsayılan dosya yoluna çevir
+        if instance.avatar.avatar == default_avatar_path:
+            # Eğer varsayılan avatar kullanıcı tarafından değiştirildiyse
+            # ve yeni bir avatar eklenmişse, bu değişiklikleri koru
+            instance.avatar.save()
+        else:
+            # Eğer kullanıcı yeni bir avatar eklediyse, varsayılanı değiştirme
+            pass
+    else:
+        # Avatar nesnesi yoksa yeni bir tane oluşturulur
+        Avatar.objects.create(user=instance, avatar=default_avatar_path)
 
 
 class Game(models.Model): #oyun game id
