@@ -30,10 +30,12 @@ urlpatterns = [
   path('joinTournament/', join_tournament, name='joinTournament'),
   path('tournament_table/', tournament_table, name='tournamentTable'),
   path('startTournament/', start_tournament, name='startTournament'),
-
-
+  path('being-tournament-match/', being_tournament_match, name='beingTournamentMatch'),
+  path('first-match/', first_match, name='firstMatch'),
+  path('tournament-winner/', tournament_winner, name='tournamentWinner'),
+  path('game-info-back/', game_info_back, name='game_info_back'),
   path('matching/', matching, name='matching'),
-
+  path('clean-tournament/', clean_tournament, name='cleanTournament'),
 
   path('head-tail/', head_tail, name='head-tail'),
   path('head-and-tail-race/', head_tail_race, name='head_tail_race'),

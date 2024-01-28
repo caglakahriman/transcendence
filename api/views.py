@@ -17,6 +17,7 @@ from urllib.parse import urljoin
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.hashers import make_password
 import requests
+import json
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -27,6 +28,7 @@ def login_user(request):
             if user.check_password(request.data["password"]):
                 token = Token.objects.get_or_create(user=user)
                 user.profile.is_online = True
+                user.profile.save()
                 user.save()
                 return Response({
                     'success': True,
@@ -162,6 +164,7 @@ def create_tournament(request):
         tournament.waitlist.append(request.user.username)
         tournament.save()
         request.user.profile.is_gaming = True
+        request.user.profile.save()
         return Response({"success": True, "tournament_id": tournament.tournament_id, "tournament_state": tournament.state}) 
     except:
         return Response({"success": False})
@@ -173,19 +176,21 @@ def join_tournament(request):
         if (Tournament.objects.filter(tournament_id = request.data["tournament_id"]).exists() == True):
 
             tournament = Tournament.objects.get(tournament_id = request.data["tournament_id"])
+            if request.user.username in tournament.invitelist:
+                tournament.invitelist.remove(request.user.username)
+            if request.user.username in tournament.waitlist:
+                tournament.waitlist.remove(request.user.username)
             tournament.waitlist.append(request.user.username)
-            tournament.invitelist.remove(request.user.username)
             tournament.save()
-
             if (request.user.username in tournament.waitlist):
                 request.user.profile.is_gaming = True
-                return Response({"success": True,})
+                request.user.profile.save()
+                return Response({"success": True})
             else:
-                print("burası")
-                return Response({"success": False,})
+                return Response({"success": False})
 
         else:
-            return Response({"success": False})
+            return Response({"success": False, "message": "Turnuva Bulunamadı. Sanırım geç kaldın :("})
     except Exception as e:
         print(f"An error occurred: {str(e)}")
         return Response({"success": False, "error_message": str(e)})
@@ -194,23 +199,39 @@ def join_tournament(request):
 @authentication_classes([TokenAuthentication])
 def invite_tournament(request):
     try:
+
         if (User.objects.filter(username=request.data["username"]).exists() == True
             and User.objects.get(username=request.data["username"]).profile.is_online == True
             and User.objects.get(username=request.data["username"]).profile.is_gaming == False
-            and Tournament.objects.filter(tournament_id = request.data["tournament_id"]).exists() == True): #check state?
-
+            and Tournament.objects.filter(tournament_id = request.data["tournament_id"]).exists() == True
+            and request.data["username"] != request.user.username):
+            print("here1")
             tournament = Tournament.objects.get(tournament_id = request.data["tournament_id"])
+            print("here1")
             tournament.invitelist.append(request.data["username"])
+            tournament.state += 1
+            print("here1")
             tournament.save()
 
-            if (len(tournament.invitelist) == 3):
+            if (tournament.state == 3 or len(tournament.invitelist) == 3 or len(tournament.waitlist) == 4):
+                tournament.state = 1
                 return Response({"success": True, "user_count": 3})
-            
             return Response({"success": True, "user_count": len(tournament.invitelist), "tournament_id": tournament.tournament_id})
         else:
-            return Response({"success": False, 'new': True})
+            print("here1 else ")
+            response_data = {"success": False}
+
+            if not User.objects.filter(username=request.data["username"]).exists():
+                response_data['message'] = "Kullanıcı mevcut değil. Lütfen başka bir kullanıcı adı girin."
+            elif not User.objects.get(username=request.data["username"]).profile.is_online:
+                response_data['message'] = "Kullanıcı çevrimiçi değil. Lütfen başka bir kullanıcı adı girin."
+            elif User.objects.get(username=request.data["username"]).profile.is_gaming:
+                response_data['message'] = "Kullanıcı şu anda bir oyun oynuyor. Lütfen başka bir kullanıcı adı girin."
+            elif not Tournament.objects.filter(tournament_id=request.data["tournament_id"]).exists():
+                response_data['message'] = "Turnuva mevcut değil. Lütfen bir önceki sayfaya dönün ve tekrar deneyin."
+            return Response(response_data)
     except:
-        return Response({"success": False})
+        return Response({"success": False, "Message": "Bişeyler ters gitti. Lütfen tekrar deneyin."})
 
 @api_view(["GET"])
 @authentication_classes([TokenAuthentication])
@@ -222,12 +243,35 @@ def start_tournament(request):
         if (all_tournaments):
             for tournament in all_tournaments:
                 if (tournament and tournament.invitelist and user.username in tournament.invitelist and user not in tournament.waitlist):
-                    return Response({"success": True, "tournament_id": tournament.tournament_id, "tournament_state": tournament.state})
+                    return Response({"success": True, "tournament_id": tournament.tournament_id, "tournament_state": tournament.state, "invitelist": True})
+                elif (tournament and tournament.waitlist and user.username in tournament.waitlist):
+                    return Response({"success": True, "tournament_id": tournament.tournament_id, "tournament_state": tournament.state, "waitlist": True})
                 else:
                     return Response({"success": False})
       
         else:
             return Response({'success': False})
+    except:
+        return Response({"success": False})
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def first_match(request):
+    try:
+        user = request.user
+        Tournament_result = Tournament.objects.get(tournament_id=request.data["tournament_id"])
+        print("first match tournament result", Tournament_result)
+        if (Tournament_result):
+            print("VAR")
+            if user.username in Tournament_result.waitlist:
+                print("user.username in Tournament_result.waitlist", Tournament_result.waitlist)
+                Tournament_result.waitlist.remove(user.username)
+                Tournament_result.save()
+                print("user.username YOK in Tournament_result.waitlist", Tournament_result.waitlist)
+                return Response({"success": True})
+        else:
+            return Response({"success": False , "error": "Tournament not found."})
     except:
         return Response({"success": False})
 
@@ -244,15 +288,16 @@ def tournament_table(request):
 
         formatted_users = [{"username": user} for user in tournament.waitlist]
 
+        print("TOURNAMENT _İD ", tournament.tournament_id)
+        print("TOURNAMENT _İD", str(tournament.tournament_id))
         return Response({
             "success": True,
             "tournament_id": tournament.tournament_id,
             "tournament_state": tournament.state,
             "users": formatted_users,
             "users_length": len(formatted_users),
+            "me" : request.user.username,
         })
-    except Tournament.DoesNotExist:
-        return Response({"success": False, "error": "Tournament not found"})
     except Exception as e:
         return Response({"success": False, "error": str(e)})
 
@@ -267,21 +312,68 @@ def get_profile(request):
         if (user.username in request.user.profile.friends):
             is_friend = True
         
+        
         backend_url = request.build_absolute_uri('/')
         full_avatar_url = urljoin(backend_url, user.avatar.avatar.url)
+        profile = user.profile
+        match_history = profile.match_history
 
-        return Response({
+        result_list_type_0 = []
+        result_list_type_1 = []
+        result_list_type_4 = []
+
+        for game_id, info in match_history.items():
+          
+            if (info["type"] == 0):
+                date = info["date"]
+                opponent = info["player1"] if info["player1"] != user.username else info["player2"]
+                outcome = "W" if info["winner"] == profile.id else "L"
+                
+                result_list_type_0.append({
+                    "date": date,
+                    "opponent": opponent,
+                    "outcome": outcome,
+                })
+            elif (info["type"] == 1):
+                date = info["date"]
+                opponent = info["player1"] if info["player1"] != user.username else info["player2"]
+                outcome = "W" if info["winner"] == profile.id else "L"
+                
+                result_list_type_1.append({
+                    "date": date,
+                    "opponent": opponent,
+                    "outcome": outcome,
+                })
+            elif (info["type"] == 4):
+                date = info["date"]
+                opponent = info["player1"] if info["player1"] != user.username else info["player2"]
+                outcome = "W" if info["winner"] == profile.id else "L"
+                
+                result_list_type_4.append({
+                    "date": date,
+                    "opponent": opponent,
+                    "outcome": outcome,
+                })
+        print("len ", len(result_list_type_4))
+        response_data = {
             "success": True,
-            "is_friend": is_friend,
             "username": user.username,
+            "is_friend": is_friend,
             "avatar": full_avatar_url,
             "is_online": user.profile.is_online,
-            "match_count": len(user.profile.match_history),
-            "friends_count": len(user.profile.friends),
-            "matches_win": user.profile.wins,
-            })
-    except:
-        return Response({"success": False})
+            "friends_count": len(profile.friends),
+            "matches_win": profile.wins,
+            "match_count": len(profile.match_history),
+            "match_length_type_0": len(result_list_type_0),
+            "match_length_type_1": len(result_list_type_1),
+            "tournament_cup_count": len(result_list_type_4),
+            "matches_type_0": result_list_type_0,
+            "matches_type_1": result_list_type_1,
+        }
+        return JsonResponse(response_data)
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error_message": str(e)})
     
 @api_view(["POST"])
 @authentication_classes([TokenAuthentication])
@@ -289,20 +381,65 @@ def get_profile(request):
 def get_myprofile(request):
     try:
         user = request.user
-
         backend_url = request.build_absolute_uri('/')
         full_avatar_url = urljoin(backend_url, user.avatar.avatar.url)
+        profile = user.profile
+        match_history = profile.match_history
 
-        return Response({
+        result_list_type_0 = []
+        result_list_type_1 = []
+        result_list_type_4 = []
+
+        for game_id, info in match_history.items():
+          
+            if (info["type"] == 0):
+                date = info["date"]
+                opponent = info["player1"] if info["player1"] != user.username else info["player2"]
+                outcome = "W" if info["winner"] == profile.id else "L"
+                
+                result_list_type_0.append({
+                    "date": date,
+                    "opponent": opponent,
+                    "outcome": outcome,
+                })
+            elif (info["type"] == 1):
+                date = info["date"]
+                opponent = info["player1"] if info["player1"] != user.username else info["player2"]
+                outcome = "W" if info["winner"] == profile.id else "L"
+                
+                result_list_type_1.append({
+                    "date": date,
+                    "opponent": opponent,
+                    "outcome": outcome,
+                })
+            elif (info["type"] == 4):
+                date = info["date"]
+                opponent = info["player1"] if info["player1"] != user.username else info["player2"]
+                outcome = "W" if info["winner"] == profile.id else "L"
+                
+                result_list_type_4.append({
+                    "date": date,
+                    "opponent": opponent,
+                    "outcome": outcome,
+                })
+
+        response_data = {
             "success": True,
             "username": user.username,
             "avatar": full_avatar_url,
-            "friends_count": len(user.profile.friends),
-            "match_count": len(user.profile.match_history),
-            "matches_win": user.profile.wins,
-        })
-    except:
-        return Response({"success": False})
+            "friends_count": len(profile.friends),
+            "matches_win": profile.wins,
+            "match_count": len(profile.match_history),
+            "match_length_type_0": len(result_list_type_0),
+            "match_length_type_1": len(result_list_type_1),
+            "tournament_cup_count": len(result_list_type_4),
+            "matches_type_0": result_list_type_0,
+            "matches_type_1": result_list_type_1,
+        }
+        return JsonResponse(response_data)
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error_message": str(e)})
 
 
 def get_avatar_binary(request):
@@ -377,6 +514,250 @@ def get_avatar(request):
         'avatar_path': avatar.avatar.url,
     })
 
+@api_view(["PUT"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def clean_tournament(request):
+    try:
+        user = request.user
+
+        tournamet = Tournament.objects.get(tournament_id=request.data["tournament_id"])
+        if (tournamet):
+            if user.username in tournamet.waitlist:
+                tournamet.waitlist.remove(user.username)
+                tournamet.save()
+                return Response({"success": True})
+        else:
+            return Response({"success": False})
+    except:
+        return Response({"success": False})
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def tournament_winner(request):
+    try:
+        user = request.user
+        print("username", user.username)
+        tournament = Tournament.objects.get(tournament_id=request.data["tournament_id"])
+        str_tournament_id = str(tournament.tournament_id)
+        tournament_id = str_tournament_id.split('-')[0]
+        user_profile = user.profile
+        if (tournament):
+            print("I am winner 1", user.username)
+            print("I am winner 2", tournament_id)
+            print("if içi")
+            if (user.username in tournament.waitlist):
+                tournament.waitlist.remove(user.username)
+            print("if içi 2")
+            tournament.state = 7
+            tournament.save()
+            print("if içi 3.33")
+            print("tournemenet winner1", tournament.winner1)
+            print("tournemenet winner2", tournament.winner2)
+            print("tournament_id", tournament_id)
+            if (tournament.winner1 is None or tournament.winner1 == '' or tournament.winner1 == None):
+                tournament.winner1 = user.username
+                tournament.winner2 = tournament_id
+                tournament.save()
+                new_game = Game.objects.create(player1 = user.username)
+
+                new_game.player1 = user.username
+                print("if içi 4.0")
+                new_game.player2 = tournament_id
+                print("if içi 4.1")
+                new_game.type = 7
+                new_game.state = 1
+                new_game.save()
+                print("if içi 4")
+                url = "http://pongapi.ftpong.duckdns.org/api/new_game"
+                mydata = {
+                    'gameid': str(new_game.game_id),
+                    'password': '4243',
+                    'password_p1': str(user.username),
+                    'password_p2': str(tournament_id),
+                    'private': True,
+                }
+                try:
+                    game_response = requests.post(url, json=mydata)
+                except requests.exceptions.RequestException as e:
+                    print('Hata:', e)
+                print("game response beign match", game_response)
+                if game_response.status_code == 201:
+                    print("201 RETURN")
+                    return Response({
+                        "success": True,
+                        "game_pass": '4243',
+                        "player": 1,
+                        "player_pass": str(user.username),
+                        "game_id": str(new_game.game_id),
+                        "game_state": new_game.state,
+                        "match": True,
+                    })
+                elif game_response.status_code == 409:
+                    return Response({"success": False, "response": 409})
+                elif game_response.status_code == 503:
+                    print(game_response.text)
+                    print("5000000000333")
+                    return Response({"success": False, "response": 503})
+                return Response({"success": True, "player1": user.username , "player2": tournament_id})
+            elif (tournament.winner2 == tournament_id):
+                print("if içi 5")
+                tournament.winner2 = user.username
+                tournament.save()
+
+                print("if içi 6")
+                new_game = Game.objects.get(player2 = tournament_id)
+                print("GAMEE İNFO", new_game)
+                print("if içi 7")
+                new_game.player2 = user.username
+                new_game.state = 2
+                new_game.save()
+
+                return Response(
+                    {
+                        "success": True,
+                        "game_pass": '4243',
+                        "player": 2,
+                        "player_pass": str(tournament_id),
+                        "game_id": str(new_game.game_id),
+                        "game_state": new_game.state,
+                        "match": True,
+                    }
+                )
+            else:
+                print("if içi 8")
+                return Response({"success": False})
+        else:
+            print("son else")
+            return Response({"success": False})
+    except Exception as e:
+        print("except", e)
+        return Response({"success": False})
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def game_info_back(request):
+    try:
+        user = request.user
+        user_profile = user.profile
+        current_match_history = user_profile.match_history
+
+        get_game = Game.objects.get(game_id=request.data["game_id"])
+        tournament = Tournament.objects.get(tournament_id=request.data["tournament_id"])
+
+
+        get_game.state = 2
+        if (get_game.type != 4 and get_game.type != 7):
+            get_game.type = 0
+        if (get_game.type == 7):
+            pass
+        get_game.save()
+        if (get_game.player1_score != '' and get_game.player1_score != None and get_game.player2_score != '' and get_game.player2_score != None):
+            get_game.player1_score = request.data["player1_score"]
+            get_game.player2_score = request.data["player2_score"]
+            get_game.save()
+        if (get_game.player1 == user.username):
+            if (get_game.player1_score > get_game.player2_score):
+                get_game.winner = user_profile.id
+                user_profile.wins += 1
+                user_profile.is_gaming = False
+                tournament.overall_winner = user.username
+                tournament.save()
+                try:
+                    new_game_data = {
+                    'game_id': str(get_game.game_id),
+                    'player1': get_game.player1,
+                    'player2': get_game.player2,
+                    'player1_score': get_game.player1_score,
+                    'player2_score': get_game.player2_score,
+                    'winner': get_game.winner,
+                    'state': get_game.state,
+                    'type': get_game.type,
+                    'date': get_game.date.strftime('%Y-%m-%d'),
+                    }
+                    current_match_history[str(get_game.game_id)] = new_game_data
+                except Exception as e:
+                    print("except", e)
+                user_profile.match_history = current_match_history
+                user_profile.save()
+                get_game.save()
+                return Response({"success": True, "winner": 1, "type": get_game.type})
+            else:
+                user_profile.losses += 1
+                user_profile.is_gaming = False
+                try:
+                    new_game_data = {
+                    'game_id': str(get_game.game_id),
+                    'player1': get_game.player1,
+                    'player2': get_game.player2,
+                    'player1_score': get_game.player1_score,
+                    'player2_score': get_game.player2_score,
+                    'winner': get_game.winner,
+                    'state': get_game.state,
+                    'type': get_game.type,
+                    'date': get_game.date.strftime('%Y-%m-%d'),
+                    }
+                    current_match_history[str(get_game.game_id)] = new_game_data
+                except Exception as e:
+                    print("except", e)
+                user_profile.match_history = current_match_history
+                user_profile.save()
+                return Response({"success": True, "lose": 1, "type": get_game.type})
+        elif (get_game.player2 == user.username):
+            if (get_game.player2_score > get_game.player1_score):
+                get_game.winner = user_profile.id
+                user_profile.wins += 1
+                user_profile.is_gaming = False
+                tournament.overall_winner = user.username
+                tournament.save()
+                try:
+                    new_game_data = {
+                    'game_id': str(get_game.game_id),
+                    'player1': get_game.player1,
+                    'player2': get_game.player2,
+                    'player1_score': get_game.player1_score,
+                    'player2_score': get_game.player2_score,
+                    'winner': get_game.winner,
+                    'state': get_game.state,
+                    'type': get_game.type,
+                    'date': get_game.date.strftime('%Y-%m-%d'),
+                    }
+                    current_match_history[str(get_game.game_id)] = new_game_data
+                except Exception as e:
+                    print("except", e)
+                user_profile.match_history = current_match_history
+                user_profile.save()
+                get_game.save()
+                return Response({"success": True, "winner": 1 , "type": get_game.type})
+            else:
+                user.profile.losses += 1
+                user.profile.is_gaming = False
+                try:
+                    new_game_data = {
+                    'game_id': str(get_game.game_id),
+                    'player1': get_game.player1,
+                    'player2': get_game.player2,
+                    'player1_score': get_game.player1_score,
+                    'player2_score': get_game.player2_score,
+                    'winner': get_game.winner,
+                    'state': get_game.state,
+                    'type': get_game.type,
+                    'date': get_game.date.strftime('%Y-%m-%d'),
+                    }
+                    current_match_history[str(get_game.game_id)] = new_game_data
+                except Exception as e:
+                    print("except", e)
+                user_profile.match_history = current_match_history
+                user_profile.save()
+                return Response({"success": True, "lose": 1, "type": get_game.type})
+        elif (get_game.player1_score and get_game.player2_score):
+            return Response({"success": False})
+    except:
+        return Response({"success": False})
+
+
 
 @api_view(["GET"])
 @authentication_classes([TokenAuthentication])
@@ -386,52 +767,70 @@ def matching(request):
         all_games = Game.objects.all()
 
         users_games = None
-        print('user.username: ', user.username)
         for game in all_games:
             if user.username in game.waitlist and game.state == 0:
                 users_games = game
-                print('hey')
                 break
         if users_games is not None:
-            print('true')
             if len(users_games.waitlist) < 2:
                 return Response({"success": True, "playerpass": user.profile.id, "game_id": users_games.game_id, "game_state": users_games.state, "match": False})
-            elif len(users_games.waitlist) == 2:
-                player_1 = users_games.waitlist[0]
-                player_2 = users_games.waitlist[1]
-                user_player1 = User.objects.get(username=player_1)
-                user_player2 = User.objects.get(username=player_2)
+            elif (len(users_games.waitlist) == 2 and users_games.state != 2): 
+                user_player1 = User.objects.get(username=users_games.waitlist[0])
+                user_player2 = User.objects.get(username=users_games.waitlist[1])
 
-                print('users_games.player1: ', users_games.player1)
-                print('users_games.player1 id : ', user.profile.id)
-                mydata = {
-                    'game_id': str(users_games.game_id),
-                    'password': '4242',
-                    'password_p1': user_player1.id,
-                    'password_p2': user_player2.id,
-                    'private': 1,
-                }
-                print('mydata:', mydata)
-                try:
-                    game_response = requests.post('http://apipong.ftpong.duckdns.org/api/new_game/', data=mydata)
-                    print('game_response: ', game_response.text)
-                except requests.exceptions.RequestException as e:
-                    print('Hata:', e)
+                print("hey")
+                print("game_type", users_games.type)
+                if (users_games.type == 0):
+                    
+                    url = "http://pongapi.ftpong.duckdns.org/api/new_game"
+                    
+                    mydata = {
+                        'gameid': str(users_games.game_id),
+                        'password': '4242',
+                        'password_p1': str(user_player1.id),
+                        'password_p2': str(user_player2.id),
+                        'private': True,
+                    }
+                    print('mydata:', mydata)
 
-                if game_response.ok:
+                    try:
+                        game_response = requests.post(url, json=mydata)
+                    except requests.exceptions.RequestException as e:
+                        print('Hata:', e)
+                    print("game response", game_response)
+                    if game_response.status_code == 201:
+                        users_games.type = 3
+                        users_games.save()
+                        return Response({
+                            "success": True,
+                            "game_pass": '4242',
+                            "player": (int(user.profile.id != user_player1.id) + 1),
+                            "player_pass": user.profile.id,
+                            "game_id": str(users_games.game_id),
+                            "game_state": users_games.state,
+                            "match": True,
+                        })
+                    elif game_response.status_code == 409:
+                        return Response({"success": False, "response": 409})
+                    elif game_response.status_code == 503:
+                        print(game_response.text)
+                        print("5000000000333")
+                        return Response({"success": False, "response": 503})
+                elif (users_games.type == 3):
+                    print('elif')
+                    users_games.type = 4
+                    users_games.save()
                     return Response({
                         "success": True,
                         "game_pass": '4242',
-                        "player": (int(user.profile.id != users_games.player1.profile.id) + 1),
+                        "player": (int(user.profile.id != user_player1.id) + 1),
                         "player_pass": user.profile.id,
-                        "game_id son": str(users_games.game_id),
+                        "game_id": str(users_games.game_id),
                         "game_state": users_games.state,
                         "match": True,
                     })
                 else:
                     return Response({"success": False})
-                
-                    
         else:
             for game in all_games:
                 if len(game.waitlist) < 2 :
@@ -447,6 +846,100 @@ def matching(request):
         print('false')
         return Response({"success": False})
 
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def being_tournament_match(request):
+    try:
+        user = request.user
+        player1 = User.objects.get(username=request.data["user1"])
+        player2 = User.objects.get(username=request.data["user2"])
+
+        all_games = Game.objects.all()
+        users_games = None
+
+        if (player2.username == user.username):
+            for game in all_games:
+                if user.username in game.player2 and game.state == 1 and game.type == 4:
+                    users_games = game
+                    break
+            else:
+                users = {"username": request.data["user1"], "username": request.data["user2"]}
+                return Response({"again": True, "users": users, "tournament_id": request.data["tournament_id"]})
+            if users_games is not None:
+                print("users_games is not None")
+                if (users_games.player2 == user.username and users_games.player1 == player1.username):
+                    print("RETURN first if")
+                    print("player pass : player 1 id = >", player1.id)
+                    return Response({
+                            "success": True,
+                            "game_pass": '4243',
+                            "player": 2,
+                            "player_pass": player2.id,
+                            "game_id": str(users_games.game_id),
+                            "game_state": users_games.state,
+                            "match": True,
+                        })
+                else:
+                    users = {"username": request.data["user1"], "username": request.data["user2"]}
+                    return Response({"again": True, "users": users, "tournament_id": request.data["tournament_id"]})
+        else:
+            for game in all_games:
+                print("else user.username", user.username)
+                print("else game.player1", game.player1)
+                print("else game.player2", game.player2)
+                if user.username in game.player1 and game.state == 1 and game.type == 4:
+                    users_games = game
+                    return Response({
+                            "success": True,
+                            "game_pass": '4243',
+                            "player": 2,
+                            "player_pass": player1.id,
+                            "game_id": str(users_games.game_id),
+                            "game_state": users_games.state,
+                            "match": True,
+                        })
+            new_game = Game.objects.create(player1 = user.username)
+            new_game.player1 = player1.username
+            new_game.player2 = player2.username
+            new_game.type = 4
+            new_game.state = 1
+            new_game.save()
+            url = "http://pongapi.ftpong.duckdns.org/api/new_game"
+            mydata = {
+                'gameid': str(new_game.game_id),
+                'password': '4243',
+                'password_p1': str(player1.id),
+                'password_p2': str(player2.id),
+                'private': True,
+            }
+            try:
+                game_response = requests.post(url, json=mydata)
+            except requests.exceptions.RequestException as e:
+                print('Hata:', e)
+            print("game response beign match", game_response)
+            if game_response.status_code == 201:
+                print("201 RETURN")
+                return Response({
+                    "success": True,
+                    "game_pass": '4243',
+                    "player": 1,
+                    "player_pass": player1.id,
+                    "game_id": str(new_game.game_id),
+                    "game_state": new_game.state,
+                    "match": True,
+                })
+            elif game_response.status_code == 409:
+                return Response({"success": False, "response": 409})
+            elif game_response.status_code == 503:
+                print(game_response.text)
+                print("5000000000333")
+                return Response({"success": False, "response": 503})
+            return Response({"success": True, "player1": player1 , "player2": player2})       
+    except:
+        print('false')
+        return Response({"success": False})
                 
 @api_view(["GET"])
 @authentication_classes([TokenAuthentication])
@@ -484,8 +977,6 @@ def head_tail(request):
     except Game.DoesNotExist:
         return Response({"success": False})
 
-
-""" """
 
 @api_view(["POST"])
 @authentication_classes([TokenAuthentication])
