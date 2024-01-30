@@ -25,7 +25,9 @@ class Avatar(models.Model):
 def create_user_profile(sender, instance, created, **kwargs):
   if created:
     Profile.objects.create(user=instance)
-    Avatar.objects.create(user=instance)
+    default_avatar_path = 'avatars/default_avatar.jpg'
+    avatar = Avatar.objects.create(user=instance, avatar=default_avatar_path)
+
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):

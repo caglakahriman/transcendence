@@ -31,7 +31,6 @@ urlpatterns = [
   path('tournament_table/', tournament_table, name='tournamentTable'),
   path('startTournament/', start_tournament, name='startTournament'),
   path('being-tournament-match/', being_tournament_match, name='beingTournamentMatch'),
-  path('first-match/', first_match, name='firstMatch'),
   path('tournament-winner/', tournament_winner, name='tournamentWinner'),
   path('game-info-back/', game_info_back, name='game_info_back'),
   path('matching/', matching, name='matching'),

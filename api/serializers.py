@@ -13,7 +13,7 @@ class UserSerializer(serializers.ModelSerializer):
             username=validated_data['username']
         )
         user.set_password(validated_data['password'])
-        user.save()
+        user.save()        
         return user
 
 class ProfileSerializer(serializers.ModelSerializer):

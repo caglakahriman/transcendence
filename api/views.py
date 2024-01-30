@@ -162,6 +162,7 @@ def create_tournament(request):
     try:
         tournament = Tournament.objects.create(creator = request.user.username)
         tournament.waitlist.append(request.user.username)
+        tournament.state = 1
         tournament.save()
         request.user.profile.is_gaming = True
         request.user.profile.save()
@@ -205,20 +206,16 @@ def invite_tournament(request):
             and User.objects.get(username=request.data["username"]).profile.is_gaming == False
             and Tournament.objects.filter(tournament_id = request.data["tournament_id"]).exists() == True
             and request.data["username"] != request.user.username):
-            print("here1")
             tournament = Tournament.objects.get(tournament_id = request.data["tournament_id"])
-            print("here1")
             tournament.invitelist.append(request.data["username"])
-            tournament.state += 1
-            print("here1")
+            #tournament.state += 1
             tournament.save()
 
-            if (tournament.state == 3 or len(tournament.invitelist) == 3 or len(tournament.waitlist) == 4):
+            if (len(tournament.invitelist) == 3 or len(tournament.waitlist) == 4):
                 tournament.state = 1
                 return Response({"success": True, "user_count": 3})
             return Response({"success": True, "user_count": len(tournament.invitelist), "tournament_id": tournament.tournament_id})
         else:
-            print("here1 else ")
             response_data = {"success": False}
 
             if not User.objects.filter(username=request.data["username"]).exists():
@@ -242,38 +239,16 @@ def start_tournament(request):
         all_tournaments = Tournament.objects.all()
         if (all_tournaments):
             for tournament in all_tournaments:
-                if (tournament and tournament.invitelist and user.username in tournament.invitelist and user not in tournament.waitlist):
+                print("tournament", tournament)
+                if (tournament and tournament.invitelist and user.username in tournament.invitelist and user not in tournament.waitlist and tournament.state == 1):
                     return Response({"success": True, "tournament_id": tournament.tournament_id, "tournament_state": tournament.state, "invitelist": True})
-                elif (tournament and tournament.waitlist and user.username in tournament.waitlist):
+                elif (tournament and tournament.waitlist and user.username in tournament.waitlist and tournament.state == 1):
                     return Response({"success": True, "tournament_id": tournament.tournament_id, "tournament_state": tournament.state, "waitlist": True})
-                else:
-                    return Response({"success": False})
-      
         else:
             return Response({'success': False})
     except:
         return Response({"success": False})
 
-@api_view(["POST"])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-def first_match(request):
-    try:
-        user = request.user
-        Tournament_result = Tournament.objects.get(tournament_id=request.data["tournament_id"])
-        print("first match tournament result", Tournament_result)
-        if (Tournament_result):
-            print("VAR")
-            if user.username in Tournament_result.waitlist:
-                print("user.username in Tournament_result.waitlist", Tournament_result.waitlist)
-                Tournament_result.waitlist.remove(user.username)
-                Tournament_result.save()
-                print("user.username YOK in Tournament_result.waitlist", Tournament_result.waitlist)
-                return Response({"success": True})
-        else:
-            return Response({"success": False , "error": "Tournament not found."})
-    except:
-        return Response({"success": False})
 
 @api_view(["POST"])
 @authentication_classes([TokenAuthentication])
@@ -281,15 +256,13 @@ def first_match(request):
 def tournament_table(request):
     try:
         tournament = Tournament.objects.get(tournament_id=request.data["tournament_id"])
-        if request.user.username in tournament.invitelist:
+        """ if request.user.username in tournament.invitelist:
            tournament.invitelist.remove(request.user.username)
            tournament.waitlist.append(request.user.username)
-           tournament.save()
+           tournament.save() """
 
         formatted_users = [{"username": user} for user in tournament.waitlist]
 
-        print("TOURNAMENT _İD ", tournament.tournament_id)
-        print("TOURNAMENT _İD", str(tournament.tournament_id))
         return Response({
             "success": True,
             "tournament_id": tournament.tournament_id,
@@ -645,7 +618,8 @@ def game_info_back(request):
         current_match_history = user_profile.match_history
 
         get_game = Game.objects.get(game_id=request.data["game_id"])
-        tournament = Tournament.objects.get(tournament_id=request.data["tournament_id"])
+        if (request.data["tournament_id"]):
+            tournament = Tournament.objects.get(tournament_id=request.data["tournament_id"])
 
 
         get_game.state = 2
@@ -663,8 +637,9 @@ def game_info_back(request):
                 get_game.winner = user_profile.id
                 user_profile.wins += 1
                 user_profile.is_gaming = False
-                tournament.overall_winner = user.username
-                tournament.save()
+                if (request.data["tournament_id"]):
+                    tournament.overall_winner = user.username
+                    tournament.save()
                 try:
                     new_game_data = {
                     'game_id': str(get_game.game_id),
@@ -710,8 +685,9 @@ def game_info_back(request):
                 get_game.winner = user_profile.id
                 user_profile.wins += 1
                 user_profile.is_gaming = False
-                tournament.overall_winner = user.username
-                tournament.save()
+                if (request.data["tournament_id"]):
+                    tournament.overall_winner = user.username
+                    tournament.save()
                 try:
                     new_game_data = {
                     'game_id': str(get_game.game_id),
@@ -755,6 +731,7 @@ def game_info_back(request):
         elif (get_game.player1_score and get_game.player2_score):
             return Response({"success": False})
     except:
+        print("burdayım")
         return Response({"success": False})
 
 
@@ -800,6 +777,7 @@ def matching(request):
                     print("game response", game_response)
                     if game_response.status_code == 201:
                         users_games.type = 3
+                        user.profile.is_gaming = True
                         users_games.save()
                         return Response({
                             "success": True,
@@ -818,7 +796,9 @@ def matching(request):
                         return Response({"success": False, "response": 503})
                 elif (users_games.type == 3):
                     print('elif')
-                    users_games.type = 4
+                    users_games.type = 5
+                    users_games.state = 1
+                    user.profile.is_gaming = True
                     users_games.save()
                     return Response({
                         "success": True,
@@ -867,11 +847,10 @@ def being_tournament_match(request):
             else:
                 users = {"username": request.data["user1"], "username": request.data["user2"]}
                 return Response({"again": True, "users": users, "tournament_id": request.data["tournament_id"]})
-            if users_games is not None:
-                print("users_games is not None")
+            if users_games is not None :
                 if (users_games.player2 == user.username and users_games.player1 == player1.username):
-                    print("RETURN first if")
-                    print("player pass : player 1 id = >", player1.id)
+                    users_games.state = 2
+                    users_games.save()
                     return Response({
                             "success": True,
                             "game_pass": '4243',
@@ -883,14 +862,13 @@ def being_tournament_match(request):
                         })
                 else:
                     users = {"username": request.data["user1"], "username": request.data["user2"]}
-                    return Response({"again": True, "users": users, "tournament_id": request.data["tournament_id"]})
+                    return Response({ "success": True, "again": True, "users": users, "tournament_id": request.data["tournament_id"]})
         else:
             for game in all_games:
-                print("else user.username", user.username)
-                print("else game.player1", game.player1)
-                print("else game.player2", game.player2)
                 if user.username in game.player1 and game.state == 1 and game.type == 4:
+                    print("BEİNG TOURNAMENT MATCH FOR STARTED GAME wiht player1", game.player1)
                     users_games = game
+                    users_games.save()
                     return Response({
                             "success": True,
                             "game_pass": '4243',
@@ -918,7 +896,6 @@ def being_tournament_match(request):
                 game_response = requests.post(url, json=mydata)
             except requests.exceptions.RequestException as e:
                 print('Hata:', e)
-            print("game response beign match", game_response)
             if game_response.status_code == 201:
                 print("201 RETURN")
                 return Response({
@@ -931,14 +908,15 @@ def being_tournament_match(request):
                     "match": True,
                 })
             elif game_response.status_code == 409:
+                """ İBO TARAFINDAN GELEN HATA """
                 return Response({"success": False, "response": 409})
             elif game_response.status_code == 503:
-                print(game_response.text)
-                print("5000000000333")
+                """ SERVER FULL ERROR İBO TARAFINDAN GELİR """
                 return Response({"success": False, "response": 503})
-            return Response({"success": True, "player1": player1 , "player2": player2})       
+            else:
+                users = {"username": request.data["user1"], "username": request.data["user2"]}
+                return Response({"success": True, "again":True, "users": users, "tournament_id": request.data["tournament_id"]})   
     except:
-        print('false')
         return Response({"success": False})
                 
 @api_view(["GET"])
@@ -983,52 +961,59 @@ def head_tail(request):
 @permission_classes([IsAuthenticated])
 def check_head_tail(request):
     try:
-        print("check_head_tail")
         game = Game.objects.get(game_id=request.data["game_id"])
         user = request.user
         if (game.state == 4 or game.state == 5):
-            print("1")
-            print("game.player1: ", game.player1)
-            print("game.player2: ", game.player2)
+            match_history = user.profile.match_history
             if (game.player1 == request.user.username and game.player2_score != '' and game.player2_score != None):
-                print("Player1_score: ", game.player1_score)
-                print("Player2_score: ", game.player2_score)
+                new_game_data_p1 = {
+                    'game_id': str(game.game_id),
+                    'player1': game.player1,
+                    'player2': game.player2,
+                    'player1_score': game.player1_score,
+                    'player2_score': game.player2_score,
+                    'state': game.state,
+                    'type': game.type,
+                    'date': game.date.strftime('%Y-%m-%d'),
+                }
                 if (game.player1_score >= game.player2_score):
-                    print("2")
-                    print("player 1 in scoru büyük player 2 ninkinden aşağıda")
-                    print("Player1_score: ", game.player1_score)
-                    print("Player2_score: ", game.player2_score)
-                    print("ve player 1 kazanır")
                     game.winner = user.profile.id
+                    new_game_data_p1['winner'] = game.player1
+                    match_history[str(game.game_id)] = new_game_data_p1
+                    user.profile.save()
                     game.save()
-                    print("1save")
                     return Response({"success": True, "winner": 1})
                 else:
-                    print("3")
+                    new_game_data_p1['winner'] = game.player2
+                    match_history[str(game.game_id)] = new_game_data_p1
+                    user.profile.save()
                     return Response({"success": True,  "lose": 1})
             elif (game.player2 == request.user.username and game.player1_score != '' and game.player1_score != None):
-                print("Player1_score: ", game.player1_score)
-                print("Player2_score: ", game.player2_score)
+                new_game_data_p2 = {
+                    'game_id': str(game.game_id),
+                    'player1': game.player1,
+                    'player2': game.player2,
+                    'player1_score': game.player1_score,
+                    'player2_score': game.player2_score,
+                    'state': game.state,
+                    'type': game.type,
+                    'date': game.date.strftime('%Y-%m-%d'),
+                }
                 if (game.player2_score >= game.player1_score):
-                    print("4")
-                    print("player 2 in scoru büyük player 1 ninkinden aşağıda")
-                    print("Player1_score: ", game.player1_score)
-                    print("Player2_score: ", game.player2_score)
-                    print("ve player 2 kazanır")
                     game.winner = user.profile.id
+                    new_game_data_p2['winner'] = game.player2
+                    match_history[str(game.game_id)] = new_game_data_p2
                     game.save()
-                    print("2save")
+                    user.profile.save()
                     return Response({"success": True, "winner": 1})
                 else:
-                    print("5")
+                    new_game_data_p2['winner'] = game.player1
+                    match_history[str(game.game_id)] = new_game_data_p2
+                    user.profile.save()
                     return Response({"success": True, "lose": 1})
             else:
-                print("6")
-                print("game.player1 again : ", game.player1)
-                print("game.player2 again: ", game.player2)
                 return Response({"success": True, "again": 1})
         else:
-            print("7")
             return Response({"success": False})
     except:
         return Response({"success": False})
@@ -1049,284 +1034,19 @@ def head_tail_race(request):
         if (game.state == 4 and game.player1 == request.user.username):#head_score
             game.player1_score = headclickcount
             game.save()
-            print("head_score player 1", game.player1_score)
-            print("player 2  id : ", game.player2)
             return Response({"success": True, "notset": 2})
         elif (game.state == 5 and  game.player1 == request.user.username): #tail_score
             game.player1_score = tailclickcount
             game.save()
-            print("tail_score player 1", game.player1_score)
-            print("player 2  id : ", game.player1)
             return Response({"success": True, "notset": 2})
         elif (game.state == 4 and game.player2 == request.user.username):
             game.player2_score = headclickcount
             game.save()
-            print("head_score player 2", game.player2_score)
-            print("player 2  id : ", game.player2)
             return Response({"success": True, "notset": 2})
         elif (game.state == 5 and game.player2 == request.user.username):
             game.player2_score = tailclickcount
             game.save()
-            print("tail_score player 2", game.player2_score)
-            print("player 2  id : ", game.player2)
             return Response({"success": True, "notset": 2})
     except:
+        print("EXCEPT")
         return Response({"success": False})
-
-            
-    
-        """ if (random_value == 0): #head
-           if (headclickcount >= tailclickcount and game.player1 == request.user.username):
-               game.player1_score == headclickcount
-               game.save()
-               if (game.player2_score != '' and game.player2_score != None):
-                   if (game.player1_score > game.player2_score):
-                       game.state = 2
-                       game.save()
-                       return Response({"success": True, "winner": game.player1})
-           if (headclickcount >= tailclickcount and game.player2 == request.user.username):
-                game.player2_score == headclickcount
-                game.save()
-                if (game.player1_score != '' and game.player1_score != None):
-                    if (game.player2_score > game.player1_score):
-                        game.state = 2
-                        game.save()
-                        return Response({"success": True, "winner": game.player2})
-           else:
-               return Response ({"success": False})
-        else:                   #tail
-            if (tailclickcount >= headclickcount and game.player1 == request.user.username):
-                game.player1_score == tailclickcount
-                game.save()
-                if (game.player2_score != '' and game.player2_score != None):
-                    if (game.player1_score > game.player2_score):
-                        game.state = 2
-                        game.save()
-                        return Response({"success": True, "winner": game.player1})
-                    else:
-                        return Response({"success": False})
-                else:
-                    return Response({"success": False})
-            if (tailclickcount >= headclickcount and game.player2 == request.user.username):
-                game.player2_score == tailclickcount
-                game.save()
-                if (game.player1_score != '' and game.player1_score != None):
-                    if (game.player2_score > game.player1_score):
-                        game.state = 2
-                        game.save()
-                        return Response({"success": True, "winner": game.player2})
-            else:
-                return Response({"success": False, "error": "Something went wrong."}) """
-'''
-        if (game and len(game.waitlist) == 2):
-            return Response({"success": True, "player": 1, "game_id": game.game_id, "game_pass": 4242, "player_pass": 2121, "game_state": game.state, "match": True})
-        if game and len(game.waitlist) < 2:
-            if game.player1 == user.username:
-                return Response({"success": True, "game_id": new_game.game_id, "game_pass": 4242, "player_pass": 2121, "game_state": new_game.state, "match": False})
-            user.profile.is_gaming = True
-            user.profile.ready_to_play = True
-            if user.username not in game.waitlist:
-                game.waitlist.append(user.username)
-                game.player2 = user.username
-                game.save()
-                return Response({"success": True, "player": 1, "game_id": game.game_id, "game_pass": 4242, "player_pass": 2121, "game_state": game.state, "match": True})
-            else:
-                return Response({'success':False})
-        elif game and user.username not in game.waitlist:
-            new_game = Game.objects.create(player1 = user.username)
-            new_game.waitlist.append(user.username)
-            return Response({"success": True, "game_id": new_game.game_id, "game_pass": 4242, "player_pass": 2121, "game_state": new_game.state, "match": False})
-        else:
-            return Response({"success": False})'''
-    
-
-'''
-
-def get_user_games(user):
-    games = Game.objects.all(player1_token=user.profile.token).append(Game.objects.all(player2_token=user.profile.token))
-    return games
-
-
-@api_view(["POST"])
-def updatename(request):
-    user = User.objects.get(token=request.data["token"])
-    user.profile.user.username = request.data["username"]
-    user.save()
-    return Response({"success": "Username updated."})
-
-@api_view(["POST"])
-def updateavatar(request):
-    user = User.objects.get(token=request.user.profile.token)
-    user.profile.avatar = request.data["avatar"]
-    user.save()
-    return Response({"success": "Avatar updated."})
-
-@api_view(["POST"])
-def updatelang(request):
-    user = User.objects.get(token=request.data["token"])
-    user.profile.lan = request.data["lan"]
-    user.save()
-    return Response({"success": "Profile updated."})
-
-@api_view(["POST"])
-def updateonline(request):
-    user = User.objects.get(token=request.data["token"])
-    user.profile.is_online = request.data["is_online"]
-    user.save()
-    return Response({"success": "Online status changed."})
-
-@api_view(["POST"])
-def updatestats(request):
-    user = User.objects.get(token=request.data["token"])
-    user.profile.total_played = request.data["total_played"]
-    user.profile.wins = request.data["wins"]
-    user.profile.losses = request.data["losses"]
-    user.save()
-    return Response({"success": "Stats updated."})
-
-@api_view(["GET"])
-def getuserstats(request):
-    games = Game.objects.all(player1_token=request.data["token"]).append(Game.objects.all(player2_token=request.data["token"]))
-    return Response(games)
-
-'''
-'''
-@api_view(["GET"]) #create game iboya atılacak, {game_id, player1_token, player2_token}
-def creategame(request):
-    game = Game.objects.create();
-    #oyun oluşturan ve oyunu oynayan herkesin is_gaming'i True olmalı.
-    post_data = {'game_id': game.id, 'player1_token': '', 'player2_token': ''}
-    response = requests.post('http://example.com', data=post_data)
-    return Response(response)'''
-'''
-
-@api_view(["GET"])
-def gettournaments(request):
-    tournaments = Tournament.objects.all(state=False)
-    serializer = TournamentSerializer(tournaments, many=True)
-    return Response(serializer.data)
-
-@api_view(["GET"])
-def getgames(request):
-    games = Game.objects.all(state=False)
-    serializer = GameSerializer(games, many=True)
-    return Response(serializer.data)
-
-@api_view(["GET"])
-def get_profile(request):
-    profile = Profile.objects.get(token=request.data["token"])
-    if (profile.user_id == User.objects.get(username=request.data["username"]).id):
-        #my_profile
-        user = User.objects.get(token=request.data["token"])
-        match_history = get_user_games(user)
-        return Response({
-            "success":True,
-            "username": user.username,
-            "friends_count": len(user.profile.friends),
-            "avatar": user.profile.avatar,
-            "online_status": user.profile.is_online,
-            "match_history": match_history,
-        })
-    else:
-        #other_profile
-        user = User.objects.get(username=request.data["username"])
-        match_history = get_user_games(user)
-        return Response({
-            "success":True,
-            "username": user.username,
-            "friends_count": len(user.profile.friends),
-            "avatar": user.profile.avatar,
-            "online_status": user.profile.is_online,
-            "match_history": match_history,
-        })
-    
-################# TOURNAMENT ENDPOINTS -START- #################
-@api_view(["POST"])
-def createTournament(request):
-    try:
-        tournament = Tournament.objects.create(creator_token=request.data["token"])
-        tournament.waitlist.append(request.data["token"])
-        tournament.save()
-        user = Profile.objects.filter(token=request.data["token"])
-        user.is_gaming = True
-        return Response({
-            "success":True,
-            "waiting_list": len(tournament.waitlist),
-            "tournament_id": tournament.tournament_id,
-        })
-    except:
-        return Response({
-            "success":False,
-        })
-
-
-@api_view(["POST"])
-def inviteTournament(request):
-    try:
-        if (User.objects.filter(username=request.data["username"]).exists() == False):
-            return Response({
-                "success":False,
-                "error":"Username not found."
-            })
-        else:
-            friend = User.objects.get(username=request.data["username"])
-            if (friend.profile.is_online == False):
-                return Response({
-                    "success":False,
-                    "error":"User is offline."
-                })
-            else:
-                user = User.objects.get(token=request.data["token"])
-                tournament = Tournament.objects.last(creator_token=user.profile.token)
-                return Response({
-                    "success":True,
-                    "count": len(tournament.waitlist),
-                    "tournament_id": tournament.tournament_id,
-                    "token": friend.profile.token,
-            })
-    except:
-        return Response({
-            "success":False,
-            "error":"Something went wrong.",
-        })
-
-@api_view(["POST"])
-def acceptTournament(request):
-    try:
-        tournament = Tournament.objects.get(tournament_id=request.data["tournament_id"])
-        tournament.waitlist.append(request.data["token"])
-        tournament.save()
-        return Response({
-            "success":True,
-            "waiting_list": tournament.waitlist,
-            "count": len(tournament.waitlist), #tournament players count
-            "tournament_id": 0, #tournament id
-        })
-    except:
-        return Response({
-            "success":False,
-            "error":"Something went wrong."
-        })
-################# TOURNAMENT ENDPOINTS -END- #################   
-    
-@api_view(["POST"])
-def updateprofile(request):
-    if(Profile.objects.filter(request.data["token"]).exists()):
-        try:
-            profile = Profile.objects.get(token=request.data["token"])
-            if (request.data["username"] != "" and User.objects.filter(username=request.data["username"]).exists() == False):
-                profile.user.username = request.data["username"]
-            if (request.data["avatar"] != ""):
-                profile.avatar = request.data["avatar"]
-            if (request.data["lan"] != "" and (request.data["lan"] == "tr" or request.data["lan"] == "en" or request["lan"] == "fr")):
-                profile.lan = request.data["lan"]
-            profile.save()
-            return Response({
-                "success":True,
-            })
-        except:
-            return Response({
-                "success":False,
-            })
-
-'''
